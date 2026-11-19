@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>MIV Catching Report</title>
   <meta name="theme-color" content="#EA580C" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link id="pwaManifest" rel="manifest" href="" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -870,7 +874,7 @@
 
     // Default Clean Blank Database (No Pre-Populated Data)
     const defaultDatabase = {
-      updatedAt: new Date().toISOString(),
+      updatedAt: '',
       adminPasscode: DEFAULT_PASSCODE,
       logPasscode: DEFAULT_PASSCODE,
       farms: [],
@@ -884,6 +888,7 @@
 
     // ==================== INITIALIZATION ====================
     document.addEventListener('DOMContentLoaded', async () => {
+      registerEmbeddedManifest();
       parseUrlSyncPayload();
       const today = getLocalTodayDate();
       document.getElementById('catchDate').value = today;
@@ -893,9 +898,7 @@
       document.getElementById('execDateTo').value = today;
       document.getElementById('adminReportDate').value = today;
 
-      if (!selectedFarmId && db.farms.length) selectedFarmId = db.farms[0].id;
-      const farmHouses = db.houses.filter(h => h.farmId === selectedFarmId);
-      if (!selectedHouseId && farmHouses.length) selectedHouseId = farmHouses[0].id;
+      ensureDefaultSelections();
 
       renderCatchingSelectors();
       addBakulRow();
@@ -913,12 +916,61 @@
         updateSyncBadge('local', 'Local');
       }
 
+      // Re-hydrate immediately when installed mobile app is opened or resumed
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && hasDropboxCredentials() && !isSyncing) {
+          await pullFromDropbox(false);
+        }
+      });
+
+      window.addEventListener('hashchange', async () => {
+        parseUrlSyncPayload();
+        if (hasDropboxCredentials() && !isSyncing) {
+          await pullFromDropbox(true);
+        }
+      });
+
       pollTimer = setInterval(async () => {
         if (hasDropboxCredentials() && !isSyncing) {
           await pullFromDropbox(false);
         }
       }, 25000);
     });
+
+    function registerEmbeddedManifest() {
+      try {
+        const manifestObj = {
+          name: 'MIV Catching Report',
+          short_name: 'MIV Catching',
+          start_url: window.location.href,
+          display: 'standalone',
+          background_color: '#FAFAFA',
+          theme_color: '#EA580C',
+          icons: [
+            {
+              src: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#EA580C"/><path fill="#FFFFFF" transform="translate(24,24) scale(3.3)" d="M19.8 8.2c-.5-.4-1.2-.5-1.8-.3-.3-1.4-1.4-2.5-2.8-2.8.2-.6.1-1.3-.3-1.8-.5-.6-1.4-.8-2.1-.4-.5.3-.8.8-.8 1.4 0 .2 0 .4.1.6-1.9.4-3.5 1.6-4.4 3.3-1.7-.3-3.5.3-4.7 1.6-.6.6-1 1.4-1 2.2 0 .5.3.9.8 1l1.7.4c.2 1.6 1.2 3 2.7 3.7v2.6c0 .6.4 1 1 1h.8c.6 0 1-.4 1-1v-2.1h2v2.1c0 .6.4 1 1 1h.8c.6 0 1-.4 1-1v-2.8c2.4-1.1 4-3.5 4-6.2 0-.6-.2-1.2-.5-1.7.4-.2.7-.6.8-1.1.1-.6-.1-1.3-.6-1.6z"/></svg>'),
+              sizes: '192x192',
+              type: 'image/svg+xml'
+            }
+          ]
+        };
+        const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+        const linkEl = document.getElementById('pwaManifest');
+        if (linkEl) linkEl.href = URL.createObjectURL(blob);
+      } catch (e) {
+        console.warn('Manifest setup skipped', e);
+      }
+    }
+
+    function ensureDefaultSelections() {
+      if ((!selectedFarmId || !db.farms.some(f => f.id === selectedFarmId)) && db.farms.length) {
+        selectedFarmId = db.farms[0].id;
+      }
+      const farmHouses = db.houses.filter(h => h.farmId === selectedFarmId);
+      if ((!selectedHouseId || !farmHouses.some(h => h.id === selectedHouseId)) && farmHouses.length) {
+        selectedHouseId = farmHouses[0].id;
+      }
+    }
 
     function getLocalTodayDate() {
       const now = new Date();
@@ -927,9 +979,9 @@
     }
 
     function formatDisplayDate(isoDate) {
-      if (!isoDate || !isoDate.includes('-')) return isoDate || 'All Dates';
-      const [yyyy, mm, dd] = isoDate.split('-');
-      return `${dd}-${mm}-${yyyy}`;
+      if (!isoDate || !isoDate.includes('-')) return isoDate || '-';
+      const [y, m, d] = isoDate.split('-');
+      return `${d}-${m}-${y}`;
     }
 
     function loadLocalDB() {
@@ -937,17 +989,13 @@
         const raw = localStorage.getItem(LOCAL_DB_KEY);
         if (!raw) return structuredClone(defaultDatabase);
         const parsed = JSON.parse(raw);
-        const houses = (parsed.houses || defaultDatabase.houses).map(h => ({
-          ...h,
-          mortality: Number(h.mortality ?? 0)
-        }));
         return {
           ...structuredClone(defaultDatabase),
           ...parsed,
-          farms: parsed.farms || defaultDatabase.farms,
-          houses,
-          bakulTypes: parsed.bakulTypes || defaultDatabase.bakulTypes,
-          catchingLogs: parsed.catchingLogs || []
+          farms: Array.isArray(parsed.farms) ? parsed.farms : [],
+          houses: Array.isArray(parsed.houses) ? parsed.houses : [],
+          bakulTypes: Array.isArray(parsed.bakulTypes) ? parsed.bakulTypes : [],
+          catchingLogs: Array.isArray(parsed.catchingLogs) ? parsed.catchingLogs : []
         };
       } catch (e) {
         return structuredClone(defaultDatabase);
@@ -1174,18 +1222,31 @@
         (db.catchingLogs || []).forEach(item => mergedMap.set(item.id, item));
         (cloudDb.catchingLogs || []).forEach(item => mergedMap.set(item.id, item));
 
+        const localIsEmpty = (!db.farms || db.farms.length === 0) && (!db.houses || db.houses.length === 0);
+        const cloudHasPresets = (cloudDb.farms && cloudDb.farms.length > 0) || (cloudDb.houses && cloudDb.houses.length > 0) || (cloudDb.bakulTypes && cloudDb.bakulTypes.length > 0);
         const cloudNewer = !db.updatedAt || (cloudDb.updatedAt && cloudDb.updatedAt >= db.updatedAt);
-        if (cloudNewer) {
-          db.farms = cloudDb.farms || db.farms;
-          db.houses = (cloudDb.houses || db.houses).map(h => ({
-            ...h,
-            mortality: Number(h.mortality ?? 0)
-          }));
-          db.bakulTypes = cloudDb.bakulTypes || db.bakulTypes;
+
+        if ((localIsEmpty && cloudHasPresets) || cloudNewer || manual) {
+          if (Array.isArray(cloudDb.farms) && (cloudDb.farms.length > 0 || !localIsEmpty)) {
+            db.farms = cloudDb.farms;
+          }
+          if (Array.isArray(cloudDb.houses) && (cloudDb.houses.length > 0 || !localIsEmpty)) {
+            db.houses = cloudDb.houses.map(h => ({
+              ...h,
+              mortality: Number(h.mortality ?? 0)
+            }));
+          }
+          if (Array.isArray(cloudDb.bakulTypes) && (cloudDb.bakulTypes.length > 0 || !localIsEmpty)) {
+            db.bakulTypes = cloudDb.bakulTypes;
+          }
+          if (cloudDb.adminPasscode) db.adminPasscode = cloudDb.adminPasscode;
+          if (cloudDb.logPasscode) db.logPasscode = cloudDb.logPasscode;
         }
         db.catchingLogs = Array.from(mergedMap.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         saveLocalDB();
 
+        ensureDefaultSelections();
+        refreshBakulRowSelects();
         renderCatchingSelectors();
         populateAllDropdowns();
         renderDailySummary();
@@ -1204,15 +1265,37 @@
       }
     }
 
+    function refreshBakulRowSelects() {
+      if (!db.bakulTypes || !db.bakulTypes.length) return;
+      const rows = Array.from(document.querySelectorAll('#bakulRowsContainer > div'));
+      rows.forEach(row => {
+        const sel = row.querySelector('.bakul-select');
+        const isiInput = row.querySelector('.bakul-isi');
+        if (!sel) return;
+        const prevVal = sel.value;
+        sel.innerHTML = db.bakulTypes.map(b =>
+          `<option value="${b.id}" ${b.id === prevVal ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
+        ).join('');
+        if (!prevVal && db.bakulTypes[0]) {
+          sel.value = db.bakulTypes[0].id;
+          if (isiInput && !isiInput.value && db.bakulTypes[0].defaultIsi) {
+            isiInput.value = db.bakulTypes[0].defaultIsi;
+          }
+        }
+      });
+    }
+
     function updateSyncBadge(state, label) {
       const dot = document.getElementById('syncDot');
       const txt = document.getElementById('syncLabel');
-      txt.textContent = label;
-      dot.className = 'w-2 h-2 rounded-full ' + (
-        state === 'synced' ? 'bg-emerald-400' :
-        state === 'syncing' ? 'bg-amber-300 animate-ping' :
-        state === 'error' ? 'bg-rose-400' : 'bg-amber-300'
-      );
+      if (txt) txt.textContent = label;
+      if (dot) {
+        dot.className = 'w-2 h-2 rounded-full ' + (
+          state === 'synced' ? 'bg-emerald-400' :
+          state === 'syncing' ? 'bg-amber-300 animate-ping' :
+          state === 'error' ? 'bg-rose-400' : 'bg-amber-300'
+        );
+      }
     }
 
     function openSyncModal() {
@@ -1248,13 +1331,13 @@
         requestPasscode('Admin Access', 'Enter Admin password (default: 1234)', () => {
           currentRole = 'admin';
           updateRoleUI();
-          switchTab('admin');
+          activateTab('admin');
           showToast('Switched to Admin Mode');
         });
       } else {
         currentRole = 'user';
         updateRoleUI();
-        if (currentTab === 'admin') switchTab('catching');
+        if (currentTab === 'admin') activateTab('catching');
         showToast('Switched to User Mode');
       }
     }
@@ -1286,8 +1369,10 @@
     function activateTab(tabName) {
       currentTab = tabName;
       ['catching', 'summary', 'executive', 'logs', 'admin'].forEach(t => {
-        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tabName);
-        document.getElementById(`nav-${t}`).classList.toggle('active', t === tabName);
+        const sec = document.getElementById(`tab-${t}`);
+        const nav = document.getElementById(`nav-${t}`);
+        if (sec) sec.classList.toggle('hidden', t !== tabName);
+        if (nav) nav.classList.toggle('active', t === tabName);
       });
       if (tabName === 'summary') {
         renderDailySummary();
@@ -1298,7 +1383,7 @@
       if (tabName === 'admin') renderAdminLists();
     }
 
-    // ==================== PASSCODE & INLINE EDIT MODALS ====================
+    // ==================== PASSCODE & EDIT MODALS ====================
     function requestPasscode(title, subtitle, onSuccess) {
       document.getElementById('passcodeTitle').textContent = title;
       document.getElementById('passcodeSubtitle').textContent = subtitle;
@@ -1358,7 +1443,7 @@
               ${escapeHtml(f.name)}
             </button>
           `).join('')
-        : `<span class="text-xs text-slate-400">No farms added yet. Add Farms &amp; Houses in Admin.</span>`;
+        : `<span class="text-xs text-slate-400">No farms yet. Add farms in Admin or Sync Dropbox.</span>`;
 
       const houses = db.houses.filter(h => h.farmId === selectedFarmId);
       if (!houses.some(h => h.id === selectedHouseId)) {
@@ -1373,7 +1458,7 @@
               ${escapeHtml(h.number)}
             </button>
           `).join('')
-        : `<span class="text-xs text-slate-400">No houses available.</span>`;
+        : `<span class="text-xs text-slate-400">No houses assigned to this farm yet.</span>`;
 
       const activeHouse = houses.find(h => h.id === selectedHouseId);
       document.getElementById('selectedHouseIntakeBadge').textContent = activeHouse
@@ -1479,34 +1564,9 @@
       const totalBakul = items.reduce((sum, r) => sum + r.qty, 0);
       const totalBirds = items.reduce((sum, r) => sum + r.subtotalBirds, 0);
 
-      const orderBakulInput = document.getElementById('catchTotalOrderBakul');
-      const totalOrderBakul = Number(orderBakulInput?.value || 0);
-      const balanceBadge = document.getElementById('bakulBalanceStatus');
-      const submitBtn = document.getElementById('submitCatchingBtn');
-
-      const isBalanced = totalOrderBakul > 0 && totalBakul === totalOrderBakul;
-
-      if (balanceBadge) {
-        if (totalOrderBakul <= 0) {
-          balanceBadge.textContent = 'Enter Total Order (Bakul)';
-          balanceBadge.className = 'text-[11px] font-bold text-slate-400';
-        } else if (isBalanced) {
-          balanceBadge.textContent = `✓ Balanced (${totalBakul}/${totalOrderBakul})`;
-          balanceBadge.className = 'text-[11px] font-extrabold text-emerald-600';
-        } else {
-          const diff = totalBakul - totalOrderBakul;
-          const diffLabel = diff > 0 ? `+${diff} over` : `${Math.abs(diff)} short`;
-          balanceBadge.textContent = `✕ Unbalanced (${totalBakul}/${totalOrderBakul} • ${diffLabel})`;
-          balanceBadge.className = 'text-[11px] font-extrabold text-rose-600';
-        }
-      }
-
-      if (submitBtn) {
-        submitBtn.disabled = !isBalanced;
-      }
-
-      const emptyAvg = Number(document.getElementById('catchEmptyWeight').value || 0);
-      const grossWeight = Number(document.getElementById('catchGrossWeight').value || 0);
+      const orderBakul = Number(document.getElementById('catchTotalOrderBakul')?.value || 0);
+      const emptyAvg = Number(document.getElementById('catchEmptyWeight')?.value || 0);
+      const grossWeight = Number(document.getElementById('catchGrossWeight')?.value || 0);
 
       const totalEmptyWeight = emptyAvg * totalBakul;
       const netWeight = Math.max(0, grossWeight - totalEmptyWeight);
@@ -1518,7 +1578,28 @@
       document.getElementById('resTotalBirds').textContent = totalBirds.toLocaleString();
       document.getElementById('resAvgBirdWeight').textContent = `${avgBirdWeight.toFixed(3)} kg`;
 
-      return { items, totalOrderBakul, totalBakul, totalBirds, emptyAvg, grossWeight, netWeight, avgBirdWeight, isBalanced };
+      const statusEl = document.getElementById('bakulBalanceStatus');
+      const submitBtn = document.getElementById('submitCatchingBtn');
+      const isBalanced = orderBakul > 0 && totalBakul === orderBakul;
+
+      if (orderBakul <= 0) {
+        statusEl.textContent = 'Enter order bakul';
+        statusEl.className = 'text-[11px] font-bold text-slate-400';
+      } else if (isBalanced) {
+        statusEl.textContent = `Balanced (${totalBakul}/${orderBakul} Bakul)`;
+        statusEl.className = 'text-[11px] font-extrabold text-emerald-600';
+      } else {
+        const diff = totalBakul - orderBakul;
+        const diffLabel = diff > 0 ? `+${diff}` : `${diff}`;
+        statusEl.textContent = `Unbalanced (${totalBakul}/${orderBakul} • ${diffLabel})`;
+        statusEl.className = 'text-[11px] font-extrabold text-rose-600';
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = !isBalanced;
+      }
+
+      return { items, totalBakul, totalBirds, orderBakul, isBalanced, emptyAvg, grossWeight, netWeight, avgBirdWeight };
     }
 
     async function submitCatchingReport() {
@@ -1540,7 +1621,7 @@
         showToast('Bakul × Isi must match Total Order (Bakul)');
         return;
       }
-      if (calc.totalBakul <= 0 || calc.totalBirds <= 0) {
+      if (calc.totalBirds <= 0) {
         showToast('Please enter Bakul quantity & Isi');
         return;
       }
@@ -1557,9 +1638,8 @@
         farmName: farm.name,
         houseId: house.id,
         houseNumber: house.number,
-        cycle: house.cycle || 'C-2026-04',
         doNumber,
-        totalOrderBakul: calc.totalOrderBakul,
+        orderBakul: calc.orderBakul,
         bakulRows: calc.items.filter(r => r.qty > 0),
         totalBakul: calc.totalBakul,
         emptyBakulAvg: calc.emptyAvg,
@@ -1588,337 +1668,39 @@
       await pushToDropbox(true);
     }
 
-    // ==================== CATCHING DAILY SUMMARY ====================
+    // ==================== DROPDOWNS & CATCHING DAILY SUMMARY ====================
     function populateAllDropdowns() {
+      const farmOpts = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+      const emptyFarmOpt = `<option value="">-- No Farms --</option>`;
+
+      // Summary Farm Dropdown
       const sumFarm = document.getElementById('sumFarmSelect');
-      sumFarm.innerHTML = db.farms.length
-        ? db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')
-        : `<option value="">-- No Farms --</option>`;
+      sumFarm.innerHTML = db.farms.length ? farmOpts : emptyFarmOpt;
       onSummaryFarmChange();
 
+      // Balance Farm Dropdown
       const balFarm = document.getElementById('balFarmSelect');
-      if (balFarm) {
-        balFarm.innerHTML = db.farms.length
-          ? db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')
-          : `<option value="">-- No Farms --</option>`;
-        onBalanceFarmChange();
-      }
+      balFarm.innerHTML = db.farms.length ? farmOpts : emptyFarmOpt;
+      onBalanceFarmChange();
 
-      const logFarm = document.getElementById('logFilterFarm');
-      logFarm.innerHTML = `<option value="ALL">All Farms</option>` +
-        db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
-
-      const adminRepFarm = document.getElementById('adminReportFarm');
-      const newHouseFarm = document.getElementById('newHouseFarm');
-      const farmOpts = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
-      adminRepFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
-      newHouseFarm.innerHTML = farmOpts || `<option value="">-- Add Farm First --</option>`;
-
+      // Executive Farm & House Dropdowns
       const execFarm = document.getElementById('execFarmSelect');
-      if (execFarm) {
-        const prevFarm = execFarm.value;
-        execFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
-        if (prevFarm && (prevFarm === 'ALL' || db.farms.some(f => f.id === prevFarm))) {
-          execFarm.value = prevFarm;
-        }
-        onExecFarmChange();
+      const prevExecFarm = execFarm.value;
+      execFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
+      if (prevExecFarm && (prevExecFarm === 'ALL' || db.farms.some(f => f.id === prevExecFarm))) {
+        execFarm.value = prevExecFarm;
       }
+      onExecFarmChange();
+
+      // Logs Farm Dropdown
+      const logFarm = document.getElementById('logFilterFarm');
+      logFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
+
+      // Admin Report Farm & New House Farm
+      document.getElementById('adminReportFarm').innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
+      document.getElementById('newHouseFarm').innerHTML = db.farms.length ? farmOpts : emptyFarmOpt;
     }
 
-    function onSummaryFarmChange() {
-      const farmId = document.getElementById('sumFarmSelect').value;
-      const houses = db.houses.filter(h => h.farmId === farmId);
-      const sumHouse = document.getElementById('sumHouseSelect');
-      sumHouse.innerHTML = `<option value="ALL">All Houses</option>` +
-        houses.map(h => `<option value="${h.id}">${escapeHtml(h.number)}</option>`).join('');
-      renderDailySummary();
-    }
-
-    function getFilteredDailySummaryData() {
-      const farmId = document.getElementById('sumFarmSelect').value;
-      const date = document.getElementById('sumDateInput').value;
-      const houseId = document.getElementById('sumHouseSelect').value;
-
-      const filtered = db.catchingLogs.filter(l => {
-        if (farmId && l.farmId !== farmId) return false;
-        if (date && l.date !== date) return false;
-        if (houseId && houseId !== 'ALL' && l.houseId !== houseId) return false;
-        return true;
-      });
-
-      const byHouse = {};
-      filtered.forEach(l => {
-        const key = l.houseNumber || 'Unknown';
-        if (!byHouse[key]) byHouse[key] = { net: 0, birds: 0, dos: [] };
-        byHouse[key].net += Number(l.netWeight || 0);
-        byHouse[key].birds += Number(l.totalBirds || 0);
-        byHouse[key].dos.push(l.doNumber);
-      });
-
-      return { filtered, byHouse };
-    }
-
-    function renderDailySummary() {
-      const { filtered, byHouse } = getFilteredDailySummaryData();
-
-      const totalNet = filtered.reduce((s, l) => s + Number(l.netWeight || 0), 0);
-      const totalBirds = filtered.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
-      const avgWt = totalBirds > 0 ? (totalNet / totalBirds) : 0;
-
-      document.getElementById('sumTotalNetWeight').textContent = `${totalNet.toFixed(2)} kg`;
-      document.getElementById('sumTotalBirds').textContent = totalBirds.toLocaleString();
-      document.getElementById('sumAvgWeight').textContent = `${avgWt.toFixed(3)} kg`;
-
-      const breakdownEl = document.getElementById('dailySummaryBreakdown');
-      const houseKeys = Object.keys(byHouse).sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-      );
-      if (!houseKeys.length) {
-        breakdownEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching records found for selected Group &amp; Date.</div>`;
-        return;
-      }
-
-      breakdownEl.innerHTML = houseKeys.map(hNum => {
-        const item = byHouse[hNum];
-        const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
-        return `
-          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <span class="text-xs font-extrabold text-slate-900">${escapeHtml(hNum)}</span>
-              <p class="text-[11px] text-slate-500">DOs: ${escapeHtml(item.dos.join(', '))}</p>
-            </div>
-            <div class="text-right text-xs">
-              <p class="font-extrabold text-[#EA580C]">${item.net.toFixed(2)} kg</p>
-              <p class="text-[11px] text-slate-600 font-semibold">${item.birds.toLocaleString()} birds • Avg ${hAvg.toFixed(3)} kg</p>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function shareDailySummaryWhatsApp() {
-      const farmName = db.farms.find(f => f.id === document.getElementById('sumFarmSelect').value)?.name || 'All Farms';
-      const rawDate = document.getElementById('sumDateInput').value;
-      const formattedDate = formatDisplayDate(rawDate);
-      const { byHouse } = getFilteredDailySummaryData();
-
-      const houseKeys = Object.keys(byHouse).sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-      );
-      const houseLines = houseKeys.length
-        ? houseKeys.map(hNum => {
-            const item = byHouse[hNum];
-            const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
-            return `${hNum} - ${item.net.toFixed(2)} kg / ${item.birds.toLocaleString()} - ${hAvg.toFixed(3)} kg`;
-          })
-        : ['No catching records'];
-
-      const msg = [
-        farmName,
-        `Date: ${formattedDate}`,
-        ...houseLines
-      ].join('\n');
-
-      openWhatsApp(msg);
-    }
-
-    // ==================== DAILY BALANCE SUMMARY (INDIVIDUAL & 2-HOUSE BATCH) ====================
-    function buildBalanceBatches(houses) {
-      const batches = [];
-      for (let i = 0; i < houses.length; i += 2) {
-        const h1 = houses[i];
-        const h2 = houses[i + 1] || null;
-        const batchNum = Math.floor(i / 2) + 1;
-        batches.push({
-          key: `batch_${batchNum}`,
-          label: `Batch ${batchNum}`,
-          houses: h2 ? [h1, h2] : [h1],
-          subtitle: h2 ? `${h1.number} + ${h2.number}` : `${h1.number}`
-        });
-      }
-      return batches;
-    }
-
-    function onBalanceFarmChange() {
-      const farmId = document.getElementById('balFarmSelect').value;
-      const houses = db.houses.filter(h => h.farmId === farmId);
-      const batches = buildBalanceBatches(houses);
-
-      selectedBalanceTargets = new Set();
-      houses.forEach(h => selectedBalanceTargets.add(`house_${h.id}`));
-      batches.forEach(b => selectedBalanceTargets.add(b.key));
-
-      renderBalanceTargetChips();
-      renderDailyBalanceSummary();
-    }
-
-    function selectAllBalanceTargets(selectAll) {
-      const farmId = document.getElementById('balFarmSelect').value;
-      const houses = db.houses.filter(h => h.farmId === farmId);
-      const batches = buildBalanceBatches(houses);
-
-      selectedBalanceTargets = new Set();
-      if (selectAll) {
-        houses.forEach(h => selectedBalanceTargets.add(`house_${h.id}`));
-        batches.forEach(b => selectedBalanceTargets.add(b.key));
-      }
-      renderBalanceTargetChips();
-      renderDailyBalanceSummary();
-    }
-
-    function toggleBalanceTarget(targetKey) {
-      if (selectedBalanceTargets.has(targetKey)) {
-        selectedBalanceTargets.delete(targetKey);
-      } else {
-        selectedBalanceTargets.add(targetKey);
-      }
-      renderBalanceTargetChips();
-      renderDailyBalanceSummary();
-    }
-
-    function renderBalanceTargetChips() {
-      const farmId = document.getElementById('balFarmSelect').value;
-      const houses = db.houses.filter(h => h.farmId === farmId);
-      const batches = buildBalanceBatches(houses);
-      const container = document.getElementById('balMultiTargetContainer');
-      if (!container) return;
-
-      const houseChips = houses.map(h => {
-        const key = `house_${h.id}`;
-        const active = selectedBalanceTargets.has(key);
-        return `
-          <button type="button" onclick="toggleBalanceTarget('${key}')"
-            class="px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer flex items-center gap-1 ${
-              active
-                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300'
-            }">
-            <span>${active ? '✓' : '+'}</span>
-            <span>${escapeHtml(h.number)}</span>
-          </button>
-        `;
-      }).join('');
-
-      const batchChips = batches.map(b => {
-        const active = selectedBalanceTargets.has(b.key);
-        return `
-          <button type="button" onclick="toggleBalanceTarget('${b.key}')"
-            class="px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer flex items-center gap-1 ${
-              active
-                ? 'bg-slate-900 text-orange-400 border-slate-900 shadow-xs'
-                : 'bg-white text-slate-700 border-slate-300 hover:border-orange-300'
-            }">
-            <span>${active ? '✓' : '+'}</span>
-            <span>${escapeHtml(b.label)} (${escapeHtml(b.subtitle)})</span>
-          </button>
-        `;
-      }).join('');
-
-      container.innerHTML = `
-        <div>
-          <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Individual Houses</span>
-          <div class="flex flex-wrap gap-1.5">${houseChips || '<span class="text-xs text-slate-400">No houses</span>'}</div>
-        </div>
-        <div>
-          <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Batch No. (2 Houses / Batch)</span>
-          <div class="flex flex-wrap gap-1.5">${batchChips || '<span class="text-xs text-slate-400">No batches</span>'}</div>
-        </div>
-      `;
-    }
-
-    function getHouseBalanceMetrics(farm, house, upToDate) {
-      const intake = Number(house.intake || 0);
-      const totalCatching = db.catchingLogs
-        .filter(l => l.farmId === farm.id && l.houseId === house.id && (!upToDate || l.date <= upToDate))
-        .reduce((sum, l) => sum + Number(l.totalBirds || 0), 0);
-
-      const totalMortality = Number(house.mortality || 0);
-      const balance = intake - totalCatching - totalMortality;
-
-      return { intake, totalCatching, totalMortality, balance };
-    }
-
-    function renderDailyBalanceSummary() {
-      const farmId = document.getElementById('balFarmSelect').value;
-      const upToDate = document.getElementById('balDateInput').value;
-      const farm = db.farms.find(f => f.id === farmId);
-      const breakdownEl = document.getElementById('dailyBalanceBreakdown');
-      const outputEl = document.getElementById('dailyBalanceTextOutput');
-
-      if (!farm) {
-        breakdownEl.innerHTML = '';
-        outputEl.textContent = 'No farm selected.';
-        return;
-      }
-
-      const houses = db.houses.filter(h => h.farmId === farm.id);
-      const batches = buildBalanceBatches(houses);
-
-      const selectedHouses = houses.filter(h => selectedBalanceTargets.has(`house_${h.id}`));
-      const selectedBatches = batches.filter(b => selectedBalanceTargets.has(b.key));
-
-      if (!selectedHouses.length && !selectedBatches.length) {
-        breakdownEl.innerHTML = `<div class="p-3 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">Tap one or more Houses or Batches above to display balance.</div>`;
-        outputEl.innerHTML = `<strong class="text-orange-400">${escapeHtml(farm.name)}</strong>\n<span>Balance:</span>\n<span class="text-slate-400">(No house or batch selected)</span>`;
-        window._latestBalanceWhatsAppText = `*${farm.name}*\nBalance:\n(No house or batch selected)`;
-        return;
-      }
-
-      const cardRows = [];
-      const htmlLines = [
-        `<strong class="text-orange-400 text-sm">${escapeHtml(farm.name)}</strong>`,
-        `<span class="text-white font-normal">Balance:</span>`
-      ];
-      const waLines = [
-        `*${farm.name}*`,
-        `Balance:`
-      ];
-
-      selectedHouses.forEach(h => {
-        const m = getHouseBalanceMetrics(farm, h, upToDate);
-        cardRows.push(`
-          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <span class="text-xs font-extrabold text-slate-900">${escapeHtml(h.number)}</span>
-              <p class="text-[11px] text-slate-500">In: ${m.intake.toLocaleString()} | Catch: ${m.totalCatching.toLocaleString()} | Mort: ${m.totalMortality.toLocaleString()}</p>
-            </div>
-            <div class="text-right">
-              <span class="text-sm font-extrabold text-slate-900">${m.balance.toLocaleString()}</span>
-            </div>
-          </div>
-        `);
-        htmlLines.push(`<strong>${escapeHtml(h.number)}</strong> - <span class="text-emerald-400 font-normal">${m.balance.toLocaleString()}</span>`);
-        waLines.push(`*${h.number}* - ${m.balance.toLocaleString()}`);
-      });
-
-      selectedBatches.forEach(b => {
-        const batchBalance = b.houses.reduce((sum, h) => sum + getHouseBalanceMetrics(farm, h, upToDate).balance, 0);
-        cardRows.push(`
-          <div class="p-3 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] flex items-center justify-between">
-            <div>
-              <span class="text-xs font-extrabold text-[#EA580C]">${escapeHtml(b.label)}</span>
-              <p class="text-[11px] text-slate-600">${escapeHtml(b.subtitle)}</p>
-            </div>
-            <div class="text-right">
-              <span class="text-sm font-extrabold text-[#EA580C]">${batchBalance.toLocaleString()}</span>
-            </div>
-          </div>
-        `);
-        htmlLines.push(`<strong>${escapeHtml(b.label)}</strong> - <span class="text-orange-400 font-normal">${batchBalance.toLocaleString()}</span>`);
-        waLines.push(`*${b.label}* - ${batchBalance.toLocaleString()}`);
-      });
-
-      breakdownEl.innerHTML = cardRows.join('');
-      outputEl.innerHTML = htmlLines.join('\n');
-      window._latestBalanceWhatsAppText = waLines.join('\n');
-    }
-
-    function shareDailyBalanceWhatsApp() {
-      if (!window._latestBalanceWhatsAppText) renderDailyBalanceSummary();
-      openWhatsApp(window._latestBalanceWhatsAppText || '');
-    }
-
-    // ==================== EXECUTIVE REPORT ====================
     function onExecFarmChange() {
       const farmId = document.getElementById('execFarmSelect').value;
       const execHouse = document.getElementById('execHouseSelect');
@@ -1946,13 +1728,13 @@
         execSortDir = execSortDir === 'asc' ? 'desc' : 'asc';
       } else {
         execSortField = field;
-        execSortDir = field === 'doNumber' ? 'asc' : 'desc';
+        execSortDir = (field === 'date' || field === 'netWeight' || field === 'totalBirds' || field === 'avgWeight') ? 'desc' : 'asc';
       }
-      updateExecSortButtons();
+      updateExecSortButtonsUI();
       renderExecutiveReport();
     }
 
-    function updateExecSortButtons() {
+    function updateExecSortButtonsUI() {
       const labels = {
         date: 'Date',
         doNumber: 'DO Number',
@@ -1973,97 +1755,395 @@
       });
     }
 
-    function getFilteredSortedExecutiveRows() {
-      const farmId = document.getElementById('execFarmSelect')?.value || 'ALL';
-      const houseId = document.getElementById('execHouseSelect')?.value || 'ALL';
-      const dateFrom = document.getElementById('execDateFrom')?.value || '';
-      const dateTo = document.getElementById('execDateTo')?.value || '';
+    function onSummaryFarmChange() {
+      const farmId = document.getElementById('sumFarmSelect').value;
+      const houses = sortHousesNatural(db.houses.filter(h => h.farmId === farmId), 'number');
+      const sumHouse = document.getElementById('sumHouseSelect');
+      sumHouse.innerHTML = `<option value="ALL">All Houses</option>` +
+        houses.map(h => `<option value="${h.id}">${escapeHtml(h.number)}</option>`).join('');
+      renderDailySummary();
+    }
 
-      const rows = db.catchingLogs
-        .filter(l => {
-          if (farmId !== 'ALL' && l.farmId !== farmId) return false;
-          if (houseId !== 'ALL' && l.houseId !== houseId) return false;
-          if (dateFrom && l.date < dateFrom) return false;
-          if (dateTo && l.date > dateTo) return false;
-          return true;
-        })
-        .map(l => {
-          const netWeight = Number(l.netWeight || 0);
-          const totalBirds = Number(l.totalBirds || 0);
-          const avgWeight = totalBirds > 0 ? (netWeight / totalBirds) : 0;
-          return {
-            ...l,
-            netWeight,
-            totalBirds,
-            avgWeight
-          };
+    function sortHousesNatural(list, key = null) {
+      return [...list].sort((a, b) => {
+        const valA = key ? (a[key] || '') : String(a || '');
+        const valB = key ? (b[key] || '') : String(b || '');
+        return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    function renderDailySummary() {
+      const farmId = document.getElementById('sumFarmSelect').value;
+      const date = document.getElementById('sumDateInput').value;
+      const houseId = document.getElementById('sumHouseSelect').value;
+
+      const filtered = db.catchingLogs.filter(l => {
+        if (farmId && l.farmId !== farmId) return false;
+        if (date && l.date !== date) return false;
+        if (houseId && houseId !== 'ALL' && l.houseId !== houseId) return false;
+        return true;
+      });
+
+      const totalNet = filtered.reduce((s, l) => s + Number(l.netWeight || 0), 0);
+      const totalBirds = filtered.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
+      const avgWt = totalBirds > 0 ? (totalNet / totalBirds) : 0;
+
+      document.getElementById('sumTotalNetWeight').textContent = `${totalNet.toFixed(2)} kg`;
+      document.getElementById('sumTotalBirds').textContent = totalBirds.toLocaleString();
+      document.getElementById('sumAvgWeight').textContent = `${avgWt.toFixed(3)} kg`;
+
+      const byHouse = {};
+      filtered.forEach(l => {
+        const key = l.houseNumber || 'Unknown';
+        if (!byHouse[key]) byHouse[key] = { net: 0, birds: 0, dos: [] };
+        byHouse[key].net += Number(l.netWeight || 0);
+        byHouse[key].birds += Number(l.totalBirds || 0);
+        byHouse[key].dos.push(l.doNumber);
+      });
+
+      const breakdownEl = document.getElementById('dailySummaryBreakdown');
+      const houseKeys = sortHousesNatural(Object.keys(byHouse));
+      if (!houseKeys.length) {
+        breakdownEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching records found for selected Group &amp; Date.</div>`;
+        return;
+      }
+
+      breakdownEl.innerHTML = houseKeys.map(hNum => {
+        const item = byHouse[hNum];
+        const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
+        return `
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-extrabold text-slate-900">${escapeHtml(hNum)}</span>
+              <p class="text-[11px] text-slate-500">DOs: ${escapeHtml(item.dos.join(', '))}</p>
+            </div>
+            <div class="text-right text-xs">
+              <p class="font-extrabold text-[#EA580C]">${item.net.toFixed(2)} kg</p>
+              <p class="text-[11px] text-slate-600 font-semibold">${item.birds.toLocaleString()} birds • Avg ${hAvg.toFixed(3)} kg</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function shareDailySummaryWhatsApp() {
+      const farmId = document.getElementById('sumFarmSelect').value;
+      const farmName = db.farms.find(f => f.id === farmId)?.name || 'All Farms';
+      const dateRaw = document.getElementById('sumDateInput').value;
+      const houseId = document.getElementById('sumHouseSelect').value;
+
+      const filtered = db.catchingLogs.filter(l => {
+        if (farmId && l.farmId !== farmId) return false;
+        if (dateRaw && l.date !== dateRaw) return false;
+        if (houseId && houseId !== 'ALL' && l.houseId !== houseId) return false;
+        return true;
+      });
+
+      const byHouse = {};
+      filtered.forEach(l => {
+        const key = l.houseNumber || 'Unknown';
+        if (!byHouse[key]) byHouse[key] = { net: 0, birds: 0 };
+        byHouse[key].net += Number(l.netWeight || 0);
+        byHouse[key].birds += Number(l.totalBirds || 0);
+      });
+
+      const houseKeys = sortHousesNatural(Object.keys(byHouse));
+      const houseLines = houseKeys.length
+        ? houseKeys.map(hNum => {
+            const item = byHouse[hNum];
+            const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
+            return `${hNum} - ${item.net.toFixed(2)} / ${item.birds.toLocaleString()} - ${hAvg.toFixed(3)}`;
+          })
+        : ['No catching records found'];
+
+      const msg = [
+        farmName,
+        `Date: ${formatDisplayDate(dateRaw)}`,
+        ...houseLines
+      ].join('\n');
+
+      openWhatsApp(msg);
+    }
+
+    // ==================== DAILY BALANCE SUMMARY (MULTI-SELECT HOUSES & BATCHES) ====================
+    function getBalanceOptionsForFarm(farmId) {
+      const houses = sortHousesNatural(db.houses.filter(h => h.farmId === farmId), 'number');
+      const individualItems = houses.map(h => ({
+        key: `house:${h.id}`,
+        type: 'house',
+        label: h.number,
+        subLabel: '(Individual)',
+        houseIds: [h.id]
+      }));
+
+      const batchItems = [];
+      for (let i = 0; i < houses.length; i += 2) {
+        const h1 = houses[i];
+        const h2 = houses[i + 1];
+        const batchNum = Math.floor(i / 2) + 1;
+        const pairHouses = h2 ? [h1, h2] : [h1];
+        batchItems.push({
+          key: `batch:${batchNum}`,
+          type: 'batch',
+          label: `Batch ${batchNum}`,
+          subLabel: pairHouses.map(x => x.number).join(' & '),
+          houseIds: pairHouses.map(x => x.id)
         });
+      }
+      return { houses, individualItems, batchItems };
+    }
+
+    function onBalanceFarmChange() {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const { individualItems, batchItems } = getBalanceOptionsForFarm(farmId);
+      const validKeys = new Set([...individualItems, ...batchItems].map(x => x.key));
+
+      selectedBalanceTargets = new Set([...selectedBalanceTargets].filter(k => validKeys.has(k)));
+      if (selectedBalanceTargets.size === 0) {
+        validKeys.forEach(k => selectedBalanceTargets.add(k));
+      }
+
+      renderBalanceMultiTargets();
+      renderDailyBalanceSummary();
+    }
+
+    function renderBalanceMultiTargets() {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const { individualItems, batchItems } = getBalanceOptionsForFarm(farmId);
+      const container = document.getElementById('balMultiTargetContainer');
+
+      if (!individualItems.length) {
+        container.innerHTML = `<span class="text-xs text-slate-400">No houses available for this farm.</span>`;
+        return;
+      }
+
+      const renderChip = (item) => {
+        const isSelected = selectedBalanceTargets.has(item.key);
+        return `
+          <button type="button" onclick="toggleBalanceTarget('${item.key}')"
+            class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition flex items-center gap-1 cursor-pointer ${
+              isSelected
+                ? 'bg-[#EA580C] border-[#EA580C] text-white shadow-xs'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-orange-300'
+            }">
+            <span class="material-symbols-rounded text-[14px]">${isSelected ? 'check_box' : 'check_box_outline_blank'}</span>
+            <span>${escapeHtml(item.label)}</span>
+            <span class="text-[10px] opacity-80">${escapeHtml(item.subLabel)}</span>
+          </button>
+        `;
+      };
+
+      container.innerHTML = `
+        <div>
+          <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Individual House</span>
+          <div class="flex flex-wrap gap-1.5">${individualItems.map(renderChip).join('')}</div>
+        </div>
+        <div>
+          <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Batch No. (2 Houses / Batch)</span>
+          <div class="flex flex-wrap gap-1.5">${batchItems.map(renderChip).join('')}</div>
+        </div>
+      `;
+    }
+
+    function toggleBalanceTarget(key) {
+      if (selectedBalanceTargets.has(key)) {
+        selectedBalanceTargets.delete(key);
+      } else {
+        selectedBalanceTargets.add(key);
+      }
+      renderBalanceMultiTargets();
+      renderDailyBalanceSummary();
+    }
+
+    function selectAllBalanceTargets(selectAll) {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const { individualItems, batchItems } = getBalanceOptionsForFarm(farmId);
+      selectedBalanceTargets.clear();
+      if (selectAll) {
+        [...individualItems, ...batchItems].forEach(item => selectedBalanceTargets.add(item.key));
+      }
+      renderBalanceMultiTargets();
+      renderDailyBalanceSummary();
+    }
+
+    function getHouseBalanceMetrics(farmId, house, dateLimit) {
+      const intake = Number(house.intake || 0);
+      const totalCatching = db.catchingLogs
+        .filter(l => l.farmId === farmId && l.houseId === house.id && (!dateLimit || l.date <= dateLimit))
+        .reduce((sum, l) => sum + Number(l.totalBirds || 0), 0);
+      const totalMortality = Number(house.mortality || 0);
+      const balance = intake - totalCatching - totalMortality;
+      return { intake, totalCatching, totalMortality, balance };
+    }
+
+    function computeDailyBalanceData() {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const farm = db.farms.find(f => f.id === farmId);
+      const farmName = farm?.name || 'FARM';
+      const dateLimit = document.getElementById('balDateInput').value;
+      const { houses, individualItems, batchItems } = getBalanceOptionsForFarm(farmId);
+
+      const houseMetricsMap = new Map();
+      houses.forEach(h => houseMetricsMap.set(h.id, getHouseBalanceMetrics(farmId, h, dateLimit)));
+
+      const displayHouseRows = [];
+      individualItems.forEach(item => {
+        if (!selectedBalanceTargets.has(item.key)) return;
+        const h = houses.find(x => x.id === item.houseIds[0]);
+        if (!h) return;
+        const m = houseMetricsMap.get(h.id);
+        displayHouseRows.push({
+          label: h.number,
+          intake: m.intake,
+          catching: m.totalCatching,
+          mortality: m.totalMortality,
+          balance: m.balance
+        });
+      });
+
+      const displayBatchRows = [];
+      batchItems.forEach(item => {
+        if (!selectedBalanceTargets.has(item.key)) return;
+        const pairHouses = item.houseIds.map(id => houses.find(h => h.id === id)).filter(Boolean);
+        let batchBalance = 0;
+        pairHouses.forEach(h => {
+          batchBalance += houseMetricsMap.get(h.id)?.balance || 0;
+        });
+        displayBatchRows.push({
+          batchLabel: item.label,
+          housesLabel: pairHouses.map(h => h.number).join(' + '),
+          balance: batchBalance
+        });
+      });
+
+      const waLines = [`*${farmName}*`, 'Balance:'];
+      displayHouseRows.forEach(r => waLines.push(`*${r.label}* - ${r.balance.toLocaleString()}`));
+      displayBatchRows.forEach(b => waLines.push(`*${b.batchLabel}* - ${b.balance.toLocaleString()}`));
+
+      return { farmName, dateLimit, displayHouseRows, displayBatchRows, waText: waLines.join('\n') };
+    }
+
+    function renderDailyBalanceSummary() {
+      const data = computeDailyBalanceData();
+      const breakdownEl = document.getElementById('dailyBalanceBreakdown');
+      const outputEl = document.getElementById('dailyBalanceTextOutput');
+
+      if (!data.displayHouseRows.length && !data.displayBatchRows.length) {
+        breakdownEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">Select one or more Houses or Batches above to display balance.</div>`;
+        outputEl.innerHTML = `<strong>${escapeHtml(data.farmName)}</strong>\nBalance:\n<span class="text-slate-400">(No House or Batch selected)</span>`;
+        return;
+      }
+
+      const houseCardsHtml = data.displayHouseRows.map(r => `
+        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2">
+          <div>
+            <span class="text-xs font-extrabold text-slate-900">${escapeHtml(r.label)}</span>
+            <p class="text-[10px] text-slate-500">In: ${r.intake.toLocaleString()} | Catch: ${r.catching.toLocaleString()} | Mort: ${r.mortality.toLocaleString()}</p>
+          </div>
+          <span class="text-sm font-extrabold ${r.balance < 0 ? 'text-rose-600' : 'text-slate-900'}">${r.balance.toLocaleString()}</span>
+        </div>
+      `).join('');
+
+      const batchCardsHtml = data.displayBatchRows.map(b => `
+        <div class="p-3 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] flex items-center justify-between gap-2">
+          <div>
+            <span class="text-xs font-extrabold text-[#EA580C]">${escapeHtml(b.batchLabel)}</span>
+            <p class="text-[10px] text-slate-600">${escapeHtml(b.housesLabel)}</p>
+          </div>
+          <span class="text-sm font-extrabold ${b.balance < 0 ? 'text-rose-600' : 'text-[#EA580C]'}">${b.balance.toLocaleString()}</span>
+        </div>
+      `).join('');
+
+      breakdownEl.innerHTML = houseCardsHtml + batchCardsHtml;
+
+      const htmlLines = [
+        `<strong>${escapeHtml(data.farmName)}</strong>`,
+        `Balance:`,
+        ...data.displayHouseRows.map(r => `<strong>${escapeHtml(r.label)}</strong> - ${r.balance.toLocaleString()}`),
+        ...data.displayBatchRows.map(b => `<strong>${escapeHtml(b.batchLabel)}</strong> - ${b.balance.toLocaleString()}`)
+      ];
+      outputEl.innerHTML = htmlLines.join('\n');
+    }
+
+    function shareDailyBalanceWhatsApp() {
+      const data = computeDailyBalanceData();
+      if (!data.displayHouseRows.length && !data.displayBatchRows.length) {
+        showToast('Select at least one House or Batch first');
+        return;
+      }
+      openWhatsApp(data.waText);
+    }
+
+    // ==================== EXECUTIVE REPORT (FILTERABLE, SORTABLE & PRINTABLE) ====================
+    function getFilteredExecutiveLogs() {
+      const farmId = document.getElementById('execFarmSelect').value;
+      const houseId = document.getElementById('execHouseSelect').value;
+      const dateFrom = document.getElementById('execDateFrom').value;
+      const dateTo = document.getElementById('execDateTo').value;
+
+      const filtered = db.catchingLogs.filter(l => {
+        if (farmId && farmId !== 'ALL' && l.farmId !== farmId) return false;
+        if (houseId && houseId !== 'ALL' && l.houseId !== houseId) return false;
+        if (dateFrom && l.date < dateFrom) return false;
+        if (dateTo && l.date > dateTo) return false;
+        return true;
+      });
 
       const dir = execSortDir === 'asc' ? 1 : -1;
-      rows.sort((a, b) => {
+      return filtered.sort((a, b) => {
         if (execSortField === 'date') {
-          return a.date.localeCompare(b.date) * dir;
+          return (a.date || '').localeCompare(b.date || '') * dir;
         }
         if (execSortField === 'doNumber') {
-          return String(a.doNumber || '').localeCompare(String(b.doNumber || ''), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+          return (a.doNumber || '').localeCompare(b.doNumber || '', undefined, { numeric: true, sensitivity: 'base' }) * dir;
         }
         if (execSortField === 'netWeight') {
-          return (a.netWeight - b.netWeight) * dir;
+          return (Number(a.netWeight || 0) - Number(b.netWeight || 0)) * dir;
         }
         if (execSortField === 'totalBirds') {
-          return (a.totalBirds - b.totalBirds) * dir;
+          return (Number(a.totalBirds || 0) - Number(b.totalBirds || 0)) * dir;
         }
         if (execSortField === 'avgWeight') {
-          return (a.avgWeight - b.avgWeight) * dir;
+          const avgA = a.totalBirds > 0 ? (Number(a.netWeight || 0) / Number(a.totalBirds)) : 0;
+          const avgB = b.totalBirds > 0 ? (Number(b.netWeight || 0) / Number(b.totalBirds)) : 0;
+          return (avgA - avgB) * dir;
         }
         return 0;
       });
-
-      return rows;
     }
 
     function renderExecutiveReport() {
-      const farmId = document.getElementById('execFarmSelect')?.value || 'ALL';
-      const houseId = document.getElementById('execHouseSelect')?.value || 'ALL';
-      const dateFrom = document.getElementById('execDateFrom')?.value || '';
-      const dateTo = document.getElementById('execDateTo')?.value || '';
+      const farmId = document.getElementById('execFarmSelect').value;
+      const houseId = document.getElementById('execHouseSelect').value;
+      const dateFrom = document.getElementById('execDateFrom').value;
+      const dateTo = document.getElementById('execDateTo').value;
 
-      const farmLabel = farmId === 'ALL'
-        ? 'All Farms'
-        : (db.farms.find(f => f.id === farmId)?.name || 'Selected Farm');
-      const houseLabel = houseId === 'ALL'
-        ? 'All Houses'
-        : (db.houses.find(h => h.id === houseId)?.number || 'Selected House');
-      const rangeLabel = (dateFrom || dateTo)
-        ? `${dateFrom ? formatDisplayDate(dateFrom) : 'Start'} to ${dateTo ? formatDisplayDate(dateTo) : 'Today'}`
-        : 'All Dates';
+      const farmLabel = farmId === 'ALL' ? 'All Farms' : (db.farms.find(f => f.id === farmId)?.name || 'All Farms');
+      const houseLabel = houseId === 'ALL' ? 'All Houses' : (db.houses.find(h => h.id === houseId)?.number || 'All Houses');
 
-      const headerEl = document.getElementById('execPrintHeader');
-      if (headerEl) {
-        headerEl.innerHTML = `
-          <span><strong>Farm:</strong> ${escapeHtml(farmLabel)} | <strong>House:</strong> ${escapeHtml(houseLabel)}</span>
-          <span><strong>Period:</strong> ${escapeHtml(rangeLabel)}</span>
-        `;
-      }
+      document.getElementById('execPrintHeader').innerHTML = `
+        <div><strong>Farm:</strong> ${escapeHtml(farmLabel)} &bull; <strong>House:</strong> ${escapeHtml(houseLabel)}</div>
+        <div><strong>Period:</strong> ${escapeHtml(formatDisplayDate(dateFrom))} to ${escapeHtml(formatDisplayDate(dateTo))}</div>
+      `;
 
-      const rows = getFilteredSortedExecutiveRows();
+      const logs = getFilteredExecutiveLogs();
       const tbody = document.getElementById('executiveReportTableBody');
       const tfoot = document.getElementById('executiveReportTableFoot');
 
-      if (!rows.length) {
+      if (!logs.length) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" class="p-6 text-center text-xs text-slate-400">
+            <td colspan="5" class="py-6 px-3 text-center text-xs text-slate-400">
               No catching records found for the selected Farm, House &amp; Date range.
             </td>
           </tr>
         `;
         tfoot.innerHTML = `
           <tr>
-            <td colspan="2" class="py-2.5 px-2.5 text-xs uppercase">TOTAL</td>
-            <td class="py-2.5 px-2.5 text-right text-[#EA580C]">0.00 kg</td>
-            <td class="py-2.5 px-2.5 text-right">0</td>
-            <td class="py-2.5 px-2.5 text-right text-emerald-700">0.000 kg</td>
+            <td colspan="2" class="py-2.5 px-2.5 text-xs">TOTAL</td>
+            <td class="py-2.5 px-2.5 text-right text-xs text-[#EA580C]">0.00 kg</td>
+            <td class="py-2.5 px-2.5 text-right text-xs">0</td>
+            <td class="py-2.5 px-2.5 text-right text-xs">0.000 kg</td>
           </tr>
         `;
         return;
@@ -2072,72 +2152,71 @@
       let totalNet = 0;
       let totalBirds = 0;
 
-      tbody.innerHTML = rows.map(r => {
-        totalNet += r.netWeight;
-        totalBirds += r.totalBirds;
+      tbody.innerHTML = logs.map(l => {
+        const net = Number(l.netWeight || 0);
+        const birds = Number(l.totalBirds || 0);
+        const avg = birds > 0 ? (net / birds) : 0;
+        totalNet += net;
+        totalBirds += birds;
+
         return `
           <tr class="hover:bg-orange-50/40">
-            <td class="py-2.5 px-2.5 whitespace-nowrap font-semibold text-slate-700">${formatDisplayDate(r.date)}</td>
+            <td class="py-2.5 px-2.5 font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(formatDisplayDate(l.date))}</td>
             <td class="py-2.5 px-2.5">
-              <span class="block font-extrabold text-slate-900">${escapeHtml(r.doNumber)}</span>
-              <span class="block text-[10px] text-slate-500">${escapeHtml(r.farmName)} • ${escapeHtml(r.houseNumber)}</span>
+              <span class="font-extrabold text-slate-900 block">${escapeHtml(l.doNumber)}</span>
+              <span class="text-[10px] text-slate-500">${escapeHtml(l.farmName)} &bull; ${escapeHtml(l.houseNumber)}</span>
             </td>
-            <td class="py-2.5 px-2.5 text-right font-bold text-[#EA580C] whitespace-nowrap">${r.netWeight.toFixed(2)}</td>
-            <td class="py-2.5 px-2.5 text-right font-bold text-slate-900 whitespace-nowrap">${r.totalBirds.toLocaleString()}</td>
-            <td class="py-2.5 px-2.5 text-right font-semibold text-emerald-700 whitespace-nowrap">${r.avgWeight.toFixed(3)}</td>
+            <td class="py-2.5 px-2.5 text-right font-bold text-[#EA580C]">${net.toFixed(2)}</td>
+            <td class="py-2.5 px-2.5 text-right font-bold text-slate-900">${birds.toLocaleString()}</td>
+            <td class="py-2.5 px-2.5 text-right font-semibold text-emerald-700">${avg.toFixed(3)}</td>
           </tr>
         `;
       }).join('');
 
       const overallAvg = totalBirds > 0 ? (totalNet / totalBirds) : 0;
-
       tfoot.innerHTML = `
         <tr>
-          <td colspan="2" class="py-3 px-2.5 text-xs uppercase tracking-wide">TOTAL (${rows.length} DO)</td>
-          <td class="py-3 px-2.5 text-right text-[#EA580C] whitespace-nowrap">${totalNet.toFixed(2)} kg</td>
-          <td class="py-3 px-2.5 text-right whitespace-nowrap">${totalBirds.toLocaleString()}</td>
-          <td class="py-3 px-2.5 text-right text-emerald-700 whitespace-nowrap">${overallAvg.toFixed(3)} kg</td>
+          <td colspan="2" class="py-2.5 px-2.5 text-xs uppercase">Total (${logs.length} DOs)</td>
+          <td class="py-2.5 px-2.5 text-right text-xs text-[#EA580C]">${totalNet.toFixed(2)} kg</td>
+          <td class="py-2.5 px-2.5 text-right text-xs">${totalBirds.toLocaleString()}</td>
+          <td class="py-2.5 px-2.5 text-right text-xs text-emerald-700">${overallAvg.toFixed(3)} kg</td>
         </tr>
       `;
     }
 
     function printExecutiveReport() {
-      renderExecutiveReport();
       window.print();
     }
 
     function shareExecutiveWhatsApp() {
-      const farmId = document.getElementById('execFarmSelect')?.value || 'ALL';
-      const houseId = document.getElementById('execHouseSelect')?.value || 'ALL';
-      const dateFrom = document.getElementById('execDateFrom')?.value || '';
-      const dateTo = document.getElementById('execDateTo')?.value || '';
+      const farmId = document.getElementById('execFarmSelect').value;
+      const houseId = document.getElementById('execHouseSelect').value;
+      const dateFrom = document.getElementById('execDateFrom').value;
+      const dateTo = document.getElementById('execDateTo').value;
+      const farmLabel = farmId === 'ALL' ? 'All Farms' : (db.farms.find(f => f.id === farmId)?.name || 'All Farms');
+      const houseLabel = houseId === 'ALL' ? 'All Houses' : (db.houses.find(h => h.id === houseId)?.number || 'All Houses');
 
-      const farmLabel = farmId === 'ALL'
-        ? 'All Farms'
-        : (db.farms.find(f => f.id === farmId)?.name || 'Selected Farm');
-      const houseLabel = houseId === 'ALL'
-        ? 'All Houses'
-        : (db.houses.find(h => h.id === houseId)?.number || 'Selected House');
-      const rangeLabel = (dateFrom || dateTo)
-        ? `${dateFrom ? formatDisplayDate(dateFrom) : 'Start'} to ${dateTo ? formatDisplayDate(dateTo) : 'Today'}`
-        : 'All Dates';
+      const logs = getFilteredExecutiveLogs();
+      let totalNet = 0;
+      let totalBirds = 0;
 
-      const rows = getFilteredSortedExecutiveRows();
-      const totalNet = rows.reduce((s, r) => s + r.netWeight, 0);
-      const totalBirds = rows.reduce((s, r) => s + r.totalBirds, 0);
+      const rows = logs.map(l => {
+        const net = Number(l.netWeight || 0);
+        const birds = Number(l.totalBirds || 0);
+        const avg = birds > 0 ? (net / birds) : 0;
+        totalNet += net;
+        totalBirds += birds;
+        return `${formatDisplayDate(l.date)} | ${l.doNumber} (${l.houseNumber}) | ${net.toFixed(2)} kg | ${birds.toLocaleString()} birds | Avg ${avg.toFixed(3)} kg`;
+      });
+
       const overallAvg = totalBirds > 0 ? (totalNet / totalBirds) : 0;
-
-      const rowLines = rows.length
-        ? rows.map(r => `${formatDisplayDate(r.date)} | ${r.doNumber} (${r.houseNumber}) | ${r.netWeight.toFixed(2)} kg | ${r.totalBirds.toLocaleString()} birds | Avg ${r.avgWeight.toFixed(3)} kg`)
-        : ['No catching records found'];
-
       const msg = [
-        '*MIV EXECUTIVE FARM REPORT*',
+        `*MIV EXECUTIVE FARM REPORT*`,
         `Farm: ${farmLabel} | House: ${houseLabel}`,
-        `Date: ${rangeLabel}`,
-        '',
-        ...rowLines,
-        '',
+        `Period: ${formatDisplayDate(dateFrom)} to ${formatDisplayDate(dateTo)}`,
+        ``,
+        ...(rows.length ? rows : ['No catching records found']),
+        ``,
         `*TOTAL NET WEIGHT:* ${totalNet.toFixed(2)} kg`,
         `*TOTAL BIRDS:* ${totalBirds.toLocaleString()}`,
         `*AVERAGE WEIGHT:* ${overallAvg.toFixed(3)} kg`
@@ -2146,7 +2225,7 @@
       openWhatsApp(msg);
     }
 
-    // ==================== MY LOGS (VIEW, AMEND, DELETE WITH PASSCODE) ====================
+    // ==================== MY LOGS (VIEW, AMEND & DELETE WITH PASSCODE) ====================
     function renderMyLogs() {
       const farmFilter = document.getElementById('logFilterFarm').value;
       const dateFilter = document.getElementById('logFilterDate').value;
@@ -2161,59 +2240,69 @@
       const listEl = document.getElementById('myLogsList');
 
       if (!logs.length) {
-        listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching logs recorded yet.</div>`;
+        listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching records found.</div>`;
         return;
       }
 
       listEl.innerHTML = logs.map(log => {
-        const bakulSummary = (log.bakulRows || [])
-          .map(r => `${r.bakulName} (${r.qty}×${r.isi})`)
-          .join(', ');
+        const bakulBreakdown = (log.bakulRows || [])
+          .map(r => `${r.bakulName}: ${r.qty} × ${r.isi}`)
+          .join(' • ');
+        const avgWt = log.totalBirds > 0 ? (Number(log.netWeight) / Number(log.totalBirds)) : 0;
 
         return `
           <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
             <div class="flex items-start justify-between gap-2">
               <div>
                 <div class="flex items-center gap-1.5">
-                  <span class="text-xs font-extrabold text-slate-900">${escapeHtml(log.farmName)} • ${escapeHtml(log.houseNumber)}</span>
+                  <span class="text-xs font-extrabold text-slate-900">${escapeHtml(log.farmName)}</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C]">${escapeHtml(log.houseNumber)}</span>
                 </div>
-                <p class="text-[11px] text-slate-500 font-medium">${formatDisplayDate(log.date)} • DO: <strong>${escapeHtml(log.doNumber)}</strong></p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Date: <strong>${escapeHtml(formatDisplayDate(log.date))}</strong> &bull; DO: <strong>${escapeHtml(log.doNumber)}</strong></p>
               </div>
-              <span class="px-2.5 py-1 rounded-full bg-[#FFF7ED] text-[#EA580C] text-xs font-extrabold">
-                ${Number(log.netWeight).toFixed(2)} kg
-              </span>
-            </div>
-
-            <p class="text-[11px] text-slate-600 bg-white px-2.5 py-1.5 rounded-xl border border-slate-100">
-              ${escapeHtml(bakulSummary || `${log.totalBakul} bakul`)} → <strong>${Number(log.totalBirds).toLocaleString()} birds</strong>
-            </p>
-
-            <div class="flex items-center justify-between pt-1">
-              <span class="text-[11px] text-slate-500">Gross: ${Number(log.grossWeight).toFixed(2)} kg • Empty: ${log.emptyBakulAvg} kg</span>
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1.5 shrink-0">
                 <button type="button" onclick="promptAmendLog('${log.id}')"
-                  class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold cursor-pointer">
+                  class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-[11px] font-bold text-slate-700 hover:border-orange-400 cursor-pointer">
                   Amend
                 </button>
                 <button type="button" onclick="promptDeleteLog('${log.id}')"
-                  class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-bold cursor-pointer">
+                  class="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-[11px] font-bold text-rose-600 cursor-pointer">
                   Delete
                 </button>
               </div>
             </div>
+
+            <div class="grid grid-cols-3 gap-2 text-center bg-white p-2 rounded-xl border border-slate-100 text-xs">
+              <div>
+                <span class="block text-[10px] text-slate-400 font-bold">Net Weight</span>
+                <strong class="text-[#EA580C]">${Number(log.netWeight).toFixed(2)} kg</strong>
+              </div>
+              <div>
+                <span class="block text-[10px] text-slate-400 font-bold">Total Birds</span>
+                <strong class="text-slate-900">${Number(log.totalBirds).toLocaleString()}</strong>
+              </div>
+              <div>
+                <span class="block text-[10px] text-slate-400 font-bold">Avg Weight</span>
+                <strong class="text-emerald-700">${avgWt.toFixed(3)} kg</strong>
+              </div>
+            </div>
+
+            <p class="text-[11px] text-slate-500">
+              ${escapeHtml(bakulBreakdown)} (Total ${log.totalBakul} bakul, Empty avg ${log.emptyBakulAvg} kg, Gross ${Number(log.grossWeight).toFixed(2)} kg)
+            </p>
           </div>
         `;
       }).join('');
     }
 
     function promptAmendLog(logId) {
-      requestPasscode('Amend Log Verification', 'Enter password to amend record (default: 1234)', () => {
+      requestPasscode('Amend Record', 'Enter passcode to amend log (default: 1234)', () => {
         openAmendModal(logId);
       });
     }
 
     function promptDeleteLog(logId) {
-      requestPasscode('Delete Log Verification', 'Enter password to delete record (default: 1234)', async () => {
+      requestPasscode('Delete Record', 'Enter passcode to delete log (default: 1234)', async () => {
         db.catchingLogs = db.catchingLogs.filter(l => l.id !== logId);
         renderMyLogs();
         renderDailySummary();
@@ -2234,35 +2323,35 @@
       document.getElementById('amendEmptyWeight').value = log.emptyBakulAvg;
       document.getElementById('amendGrossWeight').value = log.grossWeight;
 
-      const farmSel = document.getElementById('amendFarm');
-      farmSel.innerHTML = db.farms.map(f => `<option value="${f.id}" ${f.id === log.farmId ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
+      const amendFarm = document.getElementById('amendFarm');
+      amendFarm.innerHTML = db.farms.map(f =>
+        `<option value="${f.id}" ${f.id === log.farmId ? 'selected' : ''}>${escapeHtml(f.name)}</option>`
+      ).join('');
       populateAmendHouses(log.houseId);
 
       const container = document.getElementById('amendBakulRowsContainer');
       container.innerHTML = '';
-      const rows = (log.bakulRows && log.bakulRows.length)
-        ? log.bakulRows
-        : [{ bakulId: db.bakulTypes[0]?.id, qty: log.totalBakul, isi: 14 }];
-      rows.forEach(r => addAmendBakulRow(r));
+      (log.bakulRows || []).forEach(r => addAmendBakulRow(r));
+      if (!container.children.length) addAmendBakulRow();
 
       document.getElementById('amendModal').classList.remove('hidden');
       document.getElementById('amendModal').classList.add('flex');
     }
 
-    function populateAmendHouses(selectedHId = null) {
-      const fId = document.getElementById('amendFarm').value;
-      const houses = db.houses.filter(h => h.farmId === fId);
+    function populateAmendHouses(preselectHouseId = null) {
+      const farmId = document.getElementById('amendFarm').value;
+      const houses = db.houses.filter(h => h.farmId === farmId);
       document.getElementById('amendHouse').innerHTML = houses.map(h =>
-        `<option value="${h.id}" ${h.id === selectedHId ? 'selected' : ''}>${escapeHtml(h.number)}</option>`
+        `<option value="${h.id}" ${h.id === preselectHouseId ? 'selected' : ''}>${escapeHtml(h.number)}</option>`
       ).join('');
     }
 
     function addAmendBakulRow(preset = null) {
       const container = document.getElementById('amendBakulRowsContainer');
       const rowId = 'abrow_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-      const defaultBakul = preset?.bakulId || (db.bakulTypes[0]?.id || '');
-      const optionsHtml = db.bakulTypes.map(b =>
-        `<option value="${b.id}" ${b.id === defaultBakul ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
+      const selectedBakul = preset?.bakulId || (db.bakulTypes[0]?.id || '');
+      const opts = db.bakulTypes.map(b =>
+        `<option value="${b.id}" ${b.id === selectedBakul ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
       ).join('');
 
       const row = document.createElement('div');
@@ -2270,16 +2359,18 @@
       row.className = 'grid grid-cols-12 gap-1.5 items-center bg-white p-1.5 rounded-xl border border-orange-200';
       row.innerHTML = `
         <div class="col-span-5">
-          <select class="abakul-select input-m3 !py-1.5 !px-2 !text-xs">${optionsHtml}</select>
+          <select class="abakul-select input-m3 !py-1.5 !px-2 !text-xs">${opts}</select>
         </div>
         <div class="col-span-3">
-          <input type="number" class="abakul-qty input-m3 !py-1.5 !px-2 !text-xs text-center" value="${preset?.qty ?? 0}" />
+          <input type="number" min="0" value="${preset?.qty ?? 0}" placeholder="Qty" class="abakul-qty input-m3 !py-1.5 !px-2 !text-xs text-center" />
         </div>
         <div class="col-span-3">
-          <input type="number" class="abakul-isi input-m3 !py-1.5 !px-2 !text-xs text-center" value="${preset?.isi ?? 14}" />
+          <input type="number" min="0" value="${preset?.isi ?? 14}" placeholder="Isi" class="abakul-isi input-m3 !py-1.5 !px-2 !text-xs text-center" />
         </div>
-        <div class="col-span-1 text-center">
-          <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-rose-500 font-bold text-xs cursor-pointer">✕</button>
+        <div class="col-span-1 flex justify-center">
+          <button type="button" onclick="document.getElementById('${rowId}')?.remove()" class="text-rose-500 cursor-pointer">
+            <span class="material-symbols-rounded text-[16px]">delete</span>
+          </button>
         </div>
       `;
       container.appendChild(row);
@@ -2343,106 +2434,99 @@
 
     // ==================== ADMIN MANAGEMENT & REPORT GENERATOR ====================
     function renderAdminLists() {
-      document.getElementById('adminFarmList').innerHTML = db.farms.map(f => `
-        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-          <span class="font-bold text-slate-800">${escapeHtml(f.name)}</span>
-          <div class="flex gap-2">
-            <button type="button" onclick="editFarm('${f.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
-            <button type="button" onclick="deleteFarm('${f.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
-          </div>
-        </div>
-      `).join('');
+      // Farms
+      document.getElementById('adminFarmList').innerHTML = db.farms.length
+        ? db.farms.map(f => `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+              <span class="font-bold text-slate-800">${escapeHtml(f.name)}</span>
+              <div class="flex gap-2">
+                <button type="button" onclick="editFarm('${f.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
+                <button type="button" onclick="deleteFarm('${f.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
+              </div>
+            </div>
+          `).join('')
+        : `<p class="text-xs text-slate-400">No farms added yet.</p>`;
 
-      document.getElementById('adminHouseList').innerHTML = db.houses.map(h => {
-        const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
-        return `
-          <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-            <div>
-              <span class="font-bold text-slate-900">${escapeHtml(farmName)} → ${escapeHtml(h.number)}</span>
-              <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()} • Mortality: ${Number(h.mortality || 0).toLocaleString()}</span>
-            </div>
-            <div class="flex gap-2">
-              <button type="button" onclick="editHouse('${h.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
-              <button type="button" onclick="deleteHouse('${h.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+      // Houses
+      document.getElementById('adminHouseList').innerHTML = db.houses.length
+        ? db.houses.map(h => {
+            const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
+            return `
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                <div>
+                  <span class="font-bold text-slate-900">${escapeHtml(farmName)} → ${escapeHtml(h.number)}</span>
+                  <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()} &bull; Mortality: ${Number(h.mortality || 0).toLocaleString()}</span>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" onclick="editHouse('${h.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
+                  <button type="button" onclick="deleteHouse('${h.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
+                </div>
+              </div>
+            `;
+          }).join('')
+        : `<p class="text-xs text-slate-400">No houses added yet.</p>`;
 
       // Manual Mortality Input List per Individual House
-      const mortContainer = document.getElementById('adminMortalityList');
-      if (mortContainer) {
-        mortContainer.innerHTML = db.houses.length
-          ? db.houses.map(h => {
-              const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
-              return `
-                <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                  <div class="min-w-0">
-                    <span class="block text-xs font-extrabold text-slate-900 truncate">${escapeHtml(farmName)} — ${escapeHtml(h.number)}</span>
-                    <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()}</span>
-                  </div>
-                  <div class="w-32 shrink-0">
-                    <input type="number" min="0" step="1" data-house-id="${h.id}"
-                      value="${Number(h.mortality || 0)}"
-                      placeholder="Mortality"
-                      class="admin-mort-input input-m3 !py-1.5 !px-2.5 !text-xs text-right font-extrabold text-rose-600" />
-                  </div>
+      document.getElementById('adminMortalityList').innerHTML = db.houses.length
+        ? db.houses.map(h => {
+            const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
+            return `
+              <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                <div class="min-w-0">
+                  <span class="font-extrabold text-slate-900 block truncate">${escapeHtml(farmName)} — ${escapeHtml(h.number)}</span>
+                  <span class="text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()} birds</span>
                 </div>
-              `;
-            }).join('')
-          : `<div class="p-3 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">No houses configured yet.</div>`;
-      }
+                <div class="w-28 shrink-0">
+                  <input type="number" min="0" step="1" data-house-id="${h.id}" value="${Number(h.mortality || 0)}"
+                    class="admin-mort-input input-m3 !py-1.5 !px-2 !text-xs text-right" />
+                </div>
+              </div>
+            `;
+          }).join('')
+        : `<p class="text-xs text-slate-400">Add houses above to enter mortality.</p>`;
 
-      document.getElementById('adminBakulList').innerHTML = db.bakulTypes.map(b => `
-        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-          <span class="font-bold text-slate-800">${escapeHtml(b.name)} <span class="text-slate-400 font-normal">(Default Isi: ${b.defaultIsi})</span></span>
-          <div class="flex gap-2">
-            <button type="button" onclick="editBakulType('${b.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
-            <button type="button" onclick="deleteBakulType('${b.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    async function saveAllManualMortality() {
-      const inputs = Array.from(document.querySelectorAll('.admin-mort-input'));
-      inputs.forEach(inp => {
-        const hId = inp.getAttribute('data-house-id');
-        const house = db.houses.find(h => h.id === hId);
-        if (house) {
-          house.mortality = Math.max(0, Number(inp.value || 0));
-        }
-      });
-      await refreshAfterAdminChange('House mortality updated & synced!');
+      // Bakul Types
+      document.getElementById('adminBakulList').innerHTML = db.bakulTypes.length
+        ? db.bakulTypes.map(b => `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+              <span class="font-bold text-slate-800">${escapeHtml(b.name)} <span class="text-slate-400 font-normal">(Default Isi: ${b.defaultIsi})</span></span>
+              <div class="flex gap-2">
+                <button type="button" onclick="editBakulType('${b.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
+                <button type="button" onclick="deleteBakulType('${b.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
+              </div>
+            </div>
+          `).join('')
+        : `<p class="text-xs text-slate-400">No bakul types added yet.</p>`;
     }
 
     async function addFarm() {
       const name = document.getElementById('newFarmName').value.trim();
-      if (!name) return;
+      if (!name) return showToast('Enter a Farm name');
       db.farms.push({ id: 'farm_' + Date.now(), name });
       document.getElementById('newFarmName').value = '';
-      refreshAfterAdminChange('Farm added');
+      ensureDefaultSelections();
+      await refreshAfterAdminChange('Farm added');
     }
 
     function editFarm(id) {
       const f = db.farms.find(x => x.id === id);
       if (!f) return;
-      openEditValueModal('Edit Farm Group', [
-        { id: 'ef_name', label: 'Farm Name', value: f.name }
-      ], () => {
-        const val = document.getElementById('ef_name').value.trim();
+      openEditValueModal('Edit Farm Name', [
+        { id: 'editFarmNameInp', label: 'Farm Name', value: f.name, type: 'text' }
+      ], async () => {
+        const val = document.getElementById('editFarmNameInp').value.trim();
         if (!val) return;
         f.name = val;
         closeEditValueModal();
-        refreshAfterAdminChange('Farm updated');
+        await refreshAfterAdminChange('Farm updated');
       });
     }
 
     async function deleteFarm(id) {
-      if (db.farms.length <= 1) return showToast('Keep at least 1 Farm');
       db.farms = db.farms.filter(f => f.id !== id);
       db.houses = db.houses.filter(h => h.farmId !== id);
-      refreshAfterAdminChange('Farm deleted');
+      ensureDefaultSelections();
+      await refreshAfterAdminChange('Farm deleted');
     }
 
     async function addHouse() {
@@ -2456,71 +2540,85 @@
       document.getElementById('newHouseNumber').value = '';
       document.getElementById('newHouseIntake').value = '';
       document.getElementById('newHouseMortality').value = '';
-      refreshAfterAdminChange('House added');
+      ensureDefaultSelections();
+      await refreshAfterAdminChange('House added');
     }
 
     function editHouse(id) {
       const h = db.houses.find(x => x.id === id);
       if (!h) return;
       openEditValueModal('Edit House Details', [
-        { id: 'eh_num', label: 'House Number', value: h.number },
-        { id: 'eh_intake', label: 'Birds Intake', type: 'number', value: h.intake },
-        { id: 'eh_mortality', label: 'Total Mortality', type: 'number', value: Number(h.mortality || 0) }
-      ], () => {
-        const num = document.getElementById('eh_num').value.trim();
-        const intake = Number(document.getElementById('eh_intake').value || 0);
-        const mortality = Number(document.getElementById('eh_mortality').value || 0);
-        if (!num) return;
-        h.number = num;
-        h.intake = intake;
-        h.mortality = mortality;
+        { id: 'editHouseNumInp', label: 'House Number', value: h.number, type: 'text' },
+        { id: 'editHouseIntakeInp', label: 'Birds Intake', value: h.intake, type: 'number' },
+        { id: 'editHouseMortInp', label: 'Total Mortality', value: h.mortality || 0, type: 'number' }
+      ], async () => {
+        const newNum = document.getElementById('editHouseNumInp').value.trim();
+        if (!newNum) return;
+        h.number = newNum;
+        h.intake = Number(document.getElementById('editHouseIntakeInp').value || 0);
+        h.mortality = Number(document.getElementById('editHouseMortInp').value || 0);
         closeEditValueModal();
-        refreshAfterAdminChange('House updated');
+        await refreshAfterAdminChange('House updated');
       });
     }
 
     async function deleteHouse(id) {
       db.houses = db.houses.filter(h => h.id !== id);
-      refreshAfterAdminChange('House deleted');
+      ensureDefaultSelections();
+      await refreshAfterAdminChange('House deleted');
+    }
+
+    async function saveAllManualMortality() {
+      const inputs = Array.from(document.querySelectorAll('.admin-mort-input'));
+      inputs.forEach(inp => {
+        const hId = inp.getAttribute('data-house-id');
+        const house = db.houses.find(h => h.id === hId);
+        if (house) {
+          house.mortality = Math.max(0, Number(inp.value || 0));
+        }
+      });
+      await refreshAfterAdminChange('House mortality saved & synced');
     }
 
     async function addBakulType() {
       const name = document.getElementById('newBakulName').value.trim();
       const defaultIsi = Number(document.getElementById('newBakulDefaultIsi').value || 14);
-      if (!name) return;
+      if (!name) return showToast('Enter Bakul name');
       db.bakulTypes.push({ id: 'bk_' + Date.now(), name, defaultIsi });
       document.getElementById('newBakulName').value = '';
       document.getElementById('newBakulDefaultIsi').value = '';
-      refreshAfterAdminChange('Bakul type added');
+      refreshBakulRowSelects();
+      await refreshAfterAdminChange('Bakul type added');
     }
 
     function editBakulType(id) {
       const b = db.bakulTypes.find(x => x.id === id);
       if (!b) return;
       openEditValueModal('Edit Bakul Type', [
-        { id: 'eb_name', label: 'Bakul Name', value: b.name },
-        { id: 'eb_isi', label: 'Default Isi (Birds per Bakul)', type: 'number', value: b.defaultIsi }
-      ], () => {
-        const name = document.getElementById('eb_name').value.trim();
-        const isi = Number(document.getElementById('eb_isi').value || 14);
-        if (!name) return;
-        b.name = name;
-        b.defaultIsi = isi;
+        { id: 'editBakulNameInp', label: 'Bakul Name', value: b.name, type: 'text' },
+        { id: 'editBakulIsiInp', label: 'Default Isi (Birds per Bakul)', value: b.defaultIsi, type: 'number' }
+      ], async () => {
+        const newName = document.getElementById('editBakulNameInp').value.trim();
+        if (!newName) return;
+        b.name = newName;
+        b.defaultIsi = Number(document.getElementById('editBakulIsiInp').value || 14);
         closeEditValueModal();
-        refreshAfterAdminChange('Bakul updated');
+        refreshBakulRowSelects();
+        await refreshAfterAdminChange('Bakul updated');
       });
     }
 
     async function deleteBakulType(id) {
-      if (db.bakulTypes.length <= 1) return showToast('Keep at least 1 Bakul type');
       db.bakulTypes = db.bakulTypes.filter(b => b.id !== id);
-      refreshAfterAdminChange('Bakul deleted');
+      refreshBakulRowSelects();
+      await refreshAfterAdminChange('Bakul deleted');
     }
 
     async function refreshAfterAdminChange(toastMsg) {
       renderCatchingSelectors();
       populateAllDropdowns();
       renderAdminLists();
+      renderDailySummary();
       renderDailyBalanceSummary();
       renderExecutiveReport();
       showToast(toastMsg);
@@ -2535,7 +2633,7 @@
       const lines = [
         `====================================`,
         `MIV AUTOMATED FARM CATCHING REPORT`,
-        `Report Date: ${formatDisplayDate(dateFilter)}`,
+        `Report Date: ${dateFilter ? formatDisplayDate(dateFilter) : 'All Dates'}`,
         `Generated: ${new Date().toLocaleString()}`,
         `====================================`,
         ``
@@ -2546,7 +2644,7 @@
 
       farms.forEach(farm => {
         lines.push(`GROUP (FARM): ${farm.name.toUpperCase()}`);
-        const houses = db.houses.filter(h => h.farmId === farm.id);
+        const houses = sortHousesNatural(db.houses.filter(h => h.farmId === farm.id), 'number');
         houses.forEach(house => {
           const logs = db.catchingLogs.filter(l =>
             l.farmId === farm.id &&
@@ -2557,19 +2655,20 @@
           const dayNet = logs.reduce((s, l) => s + Number(l.netWeight || 0), 0);
           const dayBirds = logs.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
           const cumNet = allHouseLogs.reduce((s, l) => s + Number(l.netWeight || 0), 0);
+          const cumBirds = allHouseLogs.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
           const avgWt = dayBirds > 0 ? (dayNet / dayBirds) : 0;
 
           const intake = Number(house.intake || 0);
           const mort = Number(house.mortality || 0);
-          const estBalance = intake - mort;
+          const balance = intake - cumBirds - mort;
 
           grandNet += dayNet;
           grandBirds += dayBirds;
 
           lines.push(`  • ${house.number}`);
           lines.push(`    Daily Catch: ${dayNet.toFixed(2)} kg | ${dayBirds.toLocaleString()} birds | Avg: ${avgWt.toFixed(3)} kg`);
-          lines.push(`    Intake: ${intake.toLocaleString()} | Mortality: ${mort.toLocaleString()} | Est. Balance: ${estBalance.toLocaleString()}`);
-          lines.push(`    Cumulative House Catch Net Wt: ${cumNet.toFixed(2)} kg`);
+          lines.push(`    Intake: ${intake.toLocaleString()} | Mortality: ${mort.toLocaleString()} | Balance: ${balance.toLocaleString()}`);
+          lines.push(`    Cumulative Catch: ${cumNet.toFixed(2)} kg (${cumBirds.toLocaleString()} birds)`);
         });
         lines.push(``);
       });
@@ -2597,21 +2696,27 @@
 
     // ==================== UTILITIES ====================
     function openWhatsApp(text) {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
     }
 
     function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
       ta.style.opacity = '0';
       document.body.appendChild(ta);
+      ta.focus();
       ta.select();
-      try {
-        document.execCommand('copy');
-      } catch (e) {
-        console.warn('Copy fallback failed', e);
-      }
+      try { document.execCommand('copy'); } catch (e) {}
       document.body.removeChild(ta);
     }
 
