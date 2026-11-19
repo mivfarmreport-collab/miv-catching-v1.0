@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MIV Catching Report</title>
+  <meta name="theme-color" content="#EA580C" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #EA580C;
+      --primary-light: #F97316;
+      --primary-tint: #FFF7ED;
+      --primary-border: #FED7AA;
+      --bg-canvas: #FAFAFA;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      margin: 0;
+      padding-bottom: 88px;
+      overflow-x: hidden;
+    }
+    .material-symbols-rounded {
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .card-m3 {
+      background: #FFFFFF;
+      border-radius: 18px;
+      border: 1px solid #F1F5F9;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    }
+    .pill-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .pill-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .selector-pill {
+      flex-shrink: 0;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px solid #E2E8F0;
+      background: #FFFFFF;
+      color: #475569;
+      transition: all 0.16s ease;
+      cursor: pointer;
+    }
+    .selector-pill.active {
+      background: #EA580C;
+      border-color: #EA580C;
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+    }
+    .input-m3 {
+      width: 100%;
+      background: #F8FAFC;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 11px 13px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0F172A;
+      outline: none;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .input-m3:focus {
+      background: #FFFFFF;
+      border-color: #EA580C;
+      box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #EA580C 0%, #F97316 100%);
+      color: #FFFFFF;
+      border-radius: 14px;
+      font-weight: 700;
+      box-shadow: 0 6px 16px rgba(234, 88, 12, 0.28);
+      transition: transform 0.1s ease, opacity 0.15s;
+      cursor: pointer;
+    }
+    .btn-primary:active {
+      transform: scale(0.985);
+    }
+    .btn-whatsapp {
+      background: #16A34A;
+      color: #FFFFFF;
+      border-radius: 14px;
+      font-weight: 700;
+      box-shadow: 0 6px 16px rgba(22, 163, 74, 0.24);
+      cursor: pointer;
+    }
+    .nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #FFFFFF;
+      border-top: 1px solid #E2E8F0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+      z-index: 40;
+      box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.05);
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 4px 2px;
+      color: #64748B;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+    .nav-item.active {
+      color: #EA580C;
+    }
+    .nav-item .nav-pill {
+      padding: 3px 12px;
+      border-radius: 999px;
+      transition: background-color 0.15s;
+    }
+    .nav-item.active .nav-pill {
+      background: #FFF7ED;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #FFFFFF; padding-bottom: 0; }
+      .card-m3 { box-shadow: none; border: 1px solid #CBD5E1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP ANDROID APP BAR -->
+  <header class="sticky top-0 z-30 bg-[#EA580C] text-white shadow-md no-print">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+          <!-- Custom Chicken Emblem SVG -->
+          <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current text-white" aria-hidden="true">
+            <path d="M19.8 8.2c-.5-.4-1.2-.5-1.8-.3-.3-1.4-1.4-2.5-2.8-2.8.2-.6.1-1.3-.3-1.8-.5-.6-1.4-.8-2.1-.4-.5.3-.8.8-.8 1.4 0 .2 0 .4.1.6-1.9.4-3.5 1.6-4.4 3.3-1.7-.3-3.5.3-4.7 1.6-.6.6-1 1.4-1 2.2 0 .5.3.9.8 1l1.7.4c.2 1.6 1.2 3 2.7 3.7v2.6c0 .6.4 1 1 1h.8c.6 0 1-.4 1-1v-2.1h2v2.1c0 .6.4 1 1 1h.8c.6 0 1-.4 1-1v-2.8c2.4-1.1 4-3.5 4-6.2 0-.6-.2-1.2-.5-1.7.4-.2.7-.6.8-1.1.1-.6-.1-1.3-.6-1.6zm-5.3-1.7c.4 0 .7.3.7.7s-.3.7-.7.7-.7-.3-.7-.7.3-.7.7-.7z"/>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-[16px] font-extrabold tracking-tight leading-tight truncate">MIV Catching Report</h1>
+          <p class="text-[11px] text-orange-100 font-medium truncate">Automated Farm &amp; Harvest System</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Dropbox Sync Pill -->
+        <button type="button" onclick="openSyncModal()" id="syncStatusBtn"
+          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-[11px] font-semibold transition cursor-pointer">
+          <span id="syncDot" class="w-2 h-2 rounded-full bg-amber-300"></span>
+          <span id="syncLabel">Local</span>
+        </button>
+
+        <!-- Role Toggle Pill -->
+        <div class="flex bg-black/20 p-0.5 rounded-full text-[11px] font-bold">
+          <button type="button" id="roleUserBtn" onclick="switchRole('user')"
+            class="px-2.5 py-1 rounded-full bg-white text-[#EA580C] shadow-sm transition cursor-pointer">
+            User
+          </button>
+          <button type="button" id="roleAdminBtn" onclick="switchRole('admin')"
+            class="px-2.5 py-1 rounded-full text-orange-100 transition cursor-pointer">
+            Admin
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden max-w-[92vw]">
+    <div class="bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2">
+      <span class="material-symbols-rounded text-orange-400 text-[18px]">check_circle</span>
+      <span id="toastText">Saved</span>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-2xl mx-auto px-3.5 pt-4 space-y-4">
+
+    <!-- ==================== TAB 1: DAILY ENTRY (CATCHING FORM) ==================== -->
+    <section id="tab-catching" class="space-y-4">
+      <div class="card-m3 p-4 border-t-4 border-t-[#EA580C]">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <span class="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#FFF7ED] text-[#EA580C] border border-[#FED7AA]">
+              Daily Entry
+            </span>
+            <h2 class="text-lg font-extrabold text-slate-900 mt-1">Catching Harvest Record</h2>
+          </div>
+          <div class="text-right">
+            <label for="catchDate" class="block text-[10px] font-bold text-slate-400 uppercase">Date (Auto)</label>
+            <input type="date" id="catchDate" class="input-m3 !py-1.5 !px-2.5 !text-xs !w-auto mt-0.5" />
+          </div>
+        </div>
+
+        <!-- Step 1: Group (Farm) Selector Pills -->
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">1. Select Group (Farm)</label>
+          <div id="farmPillContainer" class="pill-scroll"></div>
+        </div>
+
+        <!-- Step 2: House Quick-Tap Selector Pills -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-bold text-slate-700">2. Select House Number</label>
+            <span id="selectedHouseIntakeBadge" class="text-[11px] font-semibold text-[#EA580C]"></span>
+          </div>
+          <div id="housePillContainer" class="pill-scroll"></div>
+        </div>
+
+        <!-- Step 3: DO Number -->
+        <div class="mb-3">
+          <label for="catchDO" class="block text-xs font-bold text-slate-700 mb-1">3. Delivery Order Number (DO)</label>
+          <input type="text" id="catchDO" placeholder="e.g. DO-2026-8841" class="input-m3" />
+        </div>
+
+        <!-- Total Order (Bakul) Balance Check Input -->
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-1">
+            <label for="catchTotalOrderBakul" class="block text-xs font-bold text-slate-700">Total Order (Bakul)</label>
+            <span id="bakulBalanceStatus" class="text-[11px] font-bold text-slate-400">Enter order bakul</span>
+          </div>
+          <input type="number" min="1" step="1" id="catchTotalOrderBakul" oninput="recalculateCatching()"
+            placeholder="e.g. 120" class="input-m3" />
+        </div>
+
+        <!-- Step 4: Bakul x Isi (Multiple Rows with Individual Birds/Bakul) -->
+        <div class="mb-4 p-3 rounded-2xl bg-[#FFF7ED]/70 border border-[#FED7AA]">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <label class="block text-xs font-extrabold text-slate-800">4. Bakul × Isi</label>
+              <p class="text-[10px] text-slate-500 font-medium">Add rows for different Bakul types or birds per bakul</p>
+            </div>
+            <button type="button" onclick="addBakulRow()"
+              class="px-3 py-1.5 rounded-full bg-[#EA580C] text-white text-[11px] font-bold flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer">
+              <span class="material-symbols-rounded text-[15px]">add</span>
+              Add Row
+            </button>
+          </div>
+
+          <!-- Column Headers -->
+          <div class="grid grid-cols-12 gap-1.5 text-[10px] font-extrabold text-slate-500 uppercase px-1 mb-1">
+            <div class="col-span-5">Bakul Name</div>
+            <div class="col-span-3 text-center">Qty Bakul</div>
+            <div class="col-span-3 text-center">Isi (Birds)</div>
+            <div class="col-span-1"></div>
+          </div>
+
+          <!-- Dynamic Rows Container -->
+          <div id="bakulRowsContainer" class="space-y-2"></div>
+
+          <!-- Multi-row Totals Bar -->
+          <div class="mt-2.5 pt-2 border-t border-orange-200 flex items-center justify-between text-[11px] font-bold text-slate-700 px-1">
+            <span>Total Bakul: <strong id="rowTotalBakulBadge" class="text-[#EA580C] text-xs">0</strong></span>
+            <span>Total Birds: <strong id="rowTotalBirdsBadge" class="text-[#EA580C] text-xs">0</strong> birds</span>
+          </div>
+        </div>
+
+        <!-- Step 5: Empty Bakul Average Weight & Total Gross Weight -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label for="catchEmptyWeight" class="block text-xs font-bold text-slate-700 mb-1">5. Empty Bakul Avg (kg)</label>
+            <input type="number" step="0.01" id="catchEmptyWeight" oninput="recalculateCatching()"
+              placeholder="e.g. 1.85" class="input-m3" />
+          </div>
+          <div>
+            <label for="catchGrossWeight" class="block text-xs font-bold text-slate-700 mb-1">6. Total Gross Weight (kg)</label>
+            <input type="number" step="0.01" id="catchGrossWeight" oninput="recalculateCatching()"
+              placeholder="e.g. 2450.50" class="input-m3" />
+          </div>
+        </div>
+
+        <!-- Live Calculation Results Card -->
+        <div class="rounded-2xl bg-slate-900 text-white p-4 mb-4 space-y-2.5">
+          <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
+            <div>
+              <p class="text-[11px] text-slate-400 font-semibold uppercase">Total Net Weight</p>
+              <p class="text-[10px] text-slate-400">Gross − (Empty Avg × Total Bakul)</p>
+            </div>
+            <div class="text-right">
+              <span id="resNetWeight" class="text-2xl font-extrabold text-orange-400">0.00</span>
+              <span class="text-xs font-bold text-slate-300">kg</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
+            <div>
+              <p class="text-[11px] text-slate-400 font-semibold uppercase">Total Numbers of Birds</p>
+              <p class="text-[10px] text-slate-400">Sum of (Bakul × Isi)</p>
+            </div>
+            <div class="text-right">
+              <span id="resTotalBirds" class="text-2xl font-extrabold text-emerald-400">0</span>
+              <span class="text-xs font-bold text-slate-300">birds</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-0.5">
+            <span class="text-[11px] text-slate-400 font-semibold uppercase">Calculated Avg Bird Weight</span>
+            <span id="resAvgBirdWeight" class="text-sm font-extrabold text-white">0.000 kg</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" id="submitCatchingBtn" onclick="submitCatchingReport()" disabled
+          class="btn-primary w-full py-3.5 text-sm tracking-wide flex items-center justify-center gap-2 disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none">
+          <span class="material-symbols-rounded text-[20px]">cloud_upload</span>
+          SUBMIT CATCHING REPORT
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: CATCHING DAILY SUMMARY ==================== -->
+    <section id="tab-summary" class="hidden space-y-4">
+      <div class="card-m3 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Catching Daily Summary</h2>
+            <p class="text-xs text-slate-500">Filter by Group (Farm), Date &amp; House</p>
+          </div>
+          <span class="material-symbols-rounded text-[#EA580C] text-[26px]">summarize</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
+          <div>
+            <label for="sumFarmSelect" class="block text-[11px] font-bold text-slate-600 mb-1">1. Select Group (Farm)</label>
+            <select id="sumFarmSelect" onchange="onSummaryFarmChange()" class="input-m3 !py-2 !text-xs"></select>
+          </div>
+          <div>
+            <label for="sumDateInput" class="block text-[11px] font-bold text-slate-600 mb-1">2. Select Date</label>
+            <input type="date" id="sumDateInput" onchange="renderDailySummary()" class="input-m3 !py-2 !text-xs" />
+          </div>
+          <div>
+            <label for="sumHouseSelect" class="block text-[11px] font-bold text-slate-600 mb-1">3. House Number</label>
+            <select id="sumHouseSelect" onchange="renderDailySummary()" class="input-m3 !py-2 !text-xs"></select>
+          </div>
+        </div>
+
+        <!-- KPI Summary Grid -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <div class="p-3 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] text-center">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">Total Net Weight</p>
+            <p id="sumTotalNetWeight" class="text-base font-extrabold text-[#EA580C] mt-0.5">0.00 kg</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">Total Birds</p>
+            <p id="sumTotalBirds" class="text-base font-extrabold text-slate-900 mt-0.5">0</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">Average Weight</p>
+            <p id="sumAvgWeight" class="text-base font-extrabold text-emerald-700 mt-0.5">0.000 kg</p>
+          </div>
+        </div>
+
+        <!-- House Breakdown List -->
+        <div id="dailySummaryBreakdown" class="space-y-2 mb-4"></div>
+
+        <button type="button" onclick="shareDailySummaryWhatsApp()"
+          class="btn-whatsapp w-full py-3.5 text-xs flex items-center justify-center gap-2">
+          <span class="material-symbols-rounded text-[18px]">share</span>
+          SHARE DAILY SUMMARY TO WHATSAPP
+        </button>
+      </div>
+
+      <!-- Daily Balance Summary Card -->
+      <div class="card-m3 p-4 border-t-4 border-t-[#EA580C]">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Daily Balance Summary</h2>
+            <p class="text-xs text-slate-500">Filter by Farm, Date &amp; Individual House or Batch (2 Houses)</p>
+          </div>
+          <span class="material-symbols-rounded text-[#EA580C] text-[26px]">balance</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
+          <div>
+            <label for="balFarmSelect" class="block text-[11px] font-bold text-slate-600 mb-1">1. Farm</label>
+            <select id="balFarmSelect" onchange="onBalanceFarmChange()" class="input-m3 !py-2 !text-xs"></select>
+          </div>
+          <div>
+            <label for="balDateInput" class="block text-[11px] font-bold text-slate-600 mb-1">2. Date</label>
+            <input type="date" id="balDateInput" onchange="renderDailyBalanceSummary()" class="input-m3 !py-2 !text-xs" />
+          </div>
+        </div>
+
+        <!-- Multi-Select House & Batch Selector -->
+        <div class="mb-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="block text-[11px] font-bold text-slate-700">3. Select Houses &amp; Batches (Multi-Select)</label>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="selectAllBalanceTargets(true)"
+                class="px-2 py-0.5 rounded-md bg-orange-100 text-[#EA580C] text-[10px] font-extrabold cursor-pointer">
+                All
+              </button>
+              <button type="button" onclick="selectAllBalanceTargets(false)"
+                class="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer">
+                Clear
+              </button>
+            </div>
+          </div>
+          <div id="balMultiTargetContainer" class="space-y-2"></div>
+        </div>
+
+        <!-- Breakdown Details -->
+        <div id="dailyBalanceBreakdown" class="space-y-2 mb-3"></div>
+
+        <!-- Formatted Text Output Mix with Bold Fonts -->
+        <div id="dailyBalanceTextOutput"
+          class="p-3.5 rounded-2xl bg-slate-900 text-slate-100 text-xs leading-relaxed whitespace-pre-line mb-3 border border-slate-800">
+        </div>
+
+        <button type="button" onclick="shareDailyBalanceWhatsApp()"
+          class="btn-whatsapp w-full py-3.5 text-xs flex items-center justify-center gap-2">
+          <span class="material-symbols-rounded text-[18px]">share</span>
+          SHARE BALANCE SUMMARY TO WHATSAPP
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: EXECUTIVE REPORT ==================== -->
+    <section id="tab-executive" class="hidden space-y-4">
+      <div class="card-m3 p-4">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Executive Farm Report</h2>
+            <p class="text-xs text-slate-500">Live Intake, Catching Net Wt &amp; Mortality Balance</p>
+          </div>
+          <span class="material-symbols-rounded text-[#EA580C] text-[26px]">monitoring</span>
+        </div>
+
+        <!-- Cycle Filter & Mortality Source Status -->
+        <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 mb-3 text-xs">
+          <div class="flex items-center gap-2">
+            <label for="execCycleSelect" class="font-bold text-slate-600">Cycle:</label>
+            <select id="execCycleSelect" onchange="renderExecutiveReport()" class="input-m3 !py-1 !px-2.5 !text-xs !w-auto">
+              <option value="ALL">All Active Cycles</option>
+            </select>
+          </div>
+          <span class="text-[11px] font-semibold text-slate-500">
+            Source: Admin Manual House Mortality
+          </span>
+        </div>
+
+        <!-- Executive Cards by Group & House -->
+        <div id="executiveReportContainer" class="space-y-3"></div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 flex gap-2">
+          <button type="button" onclick="shareExecutiveWhatsApp()"
+            class="btn-whatsapp flex-1 py-3 text-xs flex items-center justify-center gap-1.5">
+            <span class="material-symbols-rounded text-[18px]">share</span>
+            Share Executive Report
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: MY LOGS ==================== -->
+    <section id="tab-logs" class="hidden space-y-4">
+      <div class="card-m3 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">My Catching Logs</h2>
+            <p class="text-xs text-slate-500">View history (Amend &amp; Delete require passcode)</p>
+          </div>
+          <span id="logsCountBadge" class="px-2.5 py-1 rounded-full bg-[#FFF7ED] text-[#EA580C] text-xs font-extrabold">0</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <select id="logFilterFarm" onchange="renderMyLogs()" class="input-m3 !py-2 !text-xs"></select>
+          <input type="date" id="logFilterDate" onchange="renderMyLogs()" class="input-m3 !py-2 !text-xs" />
+        </div>
+
+        <div id="myLogsList" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: ADMIN PANEL ==================== -->
+    <section id="tab-admin" class="hidden space-y-4">
+      <!-- Automated Report Generator Card -->
+      <div class="card-m3 p-4 border-l-4 border-l-[#EA580C]">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Automated Farm Report Generator</h2>
+            <p class="text-xs text-slate-500">Compile full Catching + Mortality + Balance report</p>
+          </div>
+          <span class="material-symbols-rounded text-[#EA580C] text-[26px]">description</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5 my-3">
+          <div>
+            <label for="adminReportFarm" class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
+            <select id="adminReportFarm" class="input-m3 !py-2 !text-xs"></select>
+          </div>
+          <div>
+            <label for="adminReportDate" class="block text-[11px] font-bold text-slate-600 mb-1">Report Date</label>
+            <input type="date" id="adminReportDate" class="input-m3 !py-2 !text-xs" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="generateAutomatedReport()"
+            class="btn-primary py-2.5 text-xs flex items-center justify-center gap-1.5">
+            <span class="material-symbols-rounded text-[17px]">auto_awesome</span>
+            Generate Report
+          </button>
+          <button type="button" onclick="window.print()"
+            class="py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 bg-white cursor-pointer">
+            <span class="material-symbols-rounded text-[17px]">print</span>
+            Print / PDF
+          </button>
+        </div>
+
+        <div id="generatedReportBox" class="hidden mt-3 p-3.5 rounded-2xl bg-slate-900 text-slate-100 text-xs font-mono whitespace-pre-wrap leading-relaxed"></div>
+        <button id="shareAdminReportBtn" type="button" onclick="shareGeneratedReportWhatsApp()"
+          class="hidden btn-whatsapp w-full py-3 text-xs mt-2.5 flex items-center justify-center gap-2">
+          <span class="material-symbols-rounded text-[18px]">share</span>
+          SEND AUTOMATED REPORT TO WHATSAPP
+        </button>
+      </div>
+
+      <!-- Manage Farms -->
+      <div class="card-m3 p-4">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-2">Manage Farms (Groups)</h3>
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="newFarmName" placeholder="New Farm Name (e.g. MIV Farm 3)" class="input-m3 !py-2 !text-xs" />
+          <button type="button" onclick="addFarm()" class="btn-primary px-4 py-2 text-xs shrink-0">Add</button>
+        </div>
+        <div id="adminFarmList" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Manage Houses (Each House linked to a Farm) -->
+      <div class="card-m3 p-4">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-2">Manage Houses (Assigned to Farm)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
+          <select id="newHouseFarm" class="input-m3 !py-2 !text-xs"></select>
+          <input type="text" id="newHouseNumber" placeholder="House No (e.g. H1)" class="input-m3 !py-2 !text-xs" />
+          <input type="number" id="newHouseIntake" placeholder="Birds Intake (e.g. 48000)" class="input-m3 !py-2 !text-xs" />
+          <input type="number" id="newHouseMortality" placeholder="Total Mortality (e.g. 1200)" class="input-m3 !py-2 !text-xs" />
+        </div>
+        <button type="button" onclick="addHouse()" class="btn-primary w-full py-2.5 text-xs mb-3">+ Add House to Farm</button>
+        <div id="adminHouseList" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Manual Total Mortality Input per Individual House -->
+      <div class="card-m3 p-4 border-l-4 border-l-[#EA580C]">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-sm font-extrabold text-slate-900">House Total Mortality Input</h3>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF7ED] text-[#EA580C] border border-[#FED7AA]">Manual Entry</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mb-3">Enter or update total bird mortality for each individual house. Updates Daily Balance &amp; Executive reports automatically.</p>
+        <div id="adminMortalityList" class="space-y-2"></div>
+        <button type="button" onclick="saveAllManualMortality()" class="btn-primary w-full py-2.5 text-xs mt-3 flex items-center justify-center gap-1.5">
+          <span class="material-symbols-rounded text-[17px]">save</span>
+          Save House Mortality
+        </button>
+      </div>
+
+      <!-- Manage Bakul Names -->
+      <div class="card-m3 p-4">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-2">Manage Bakul Names &amp; Defaults</h3>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <input type="text" id="newBakulName" placeholder="Bakul Name (e.g. Bakul Besar)" class="input-m3 !py-2 !text-xs col-span-2" />
+          <input type="number" id="newBakulDefaultIsi" placeholder="Default Isi (14)" class="input-m3 !py-2 !text-xs" />
+        </div>
+        <button type="button" onclick="addBakulType()" class="btn-primary w-full py-2.5 text-xs mb-3">+ Add Bakul Type</button>
+        <div id="adminBakulList" class="space-y-1.5"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM ANDROID NAVIGATION BAR -->
+  <nav class="nav-bar no-print">
+    <button type="button" onclick="switchTab('catching')" id="nav-catching" class="nav-item active">
+      <div class="nav-pill"><span class="material-symbols-rounded text-[21px]">edit_note</span></div>
+      <span>Daily Entry</span>
+    </button>
+    <button type="button" onclick="switchTab('summary')" id="nav-summary" class="nav-item">
+      <div class="nav-pill"><span class="material-symbols-rounded text-[21px]">analytics</span></div>
+      <span>Daily Sum</span>
+    </button>
+    <button type="button" onclick="switchTab('executive')" id="nav-executive" class="nav-item">
+      <div class="nav-pill"><span class="material-symbols-rounded text-[21px]">monitoring</span></div>
+      <span>Executive</span>
+    </button>
+    <button type="button" onclick="switchTab('logs')" id="nav-logs" class="nav-item">
+      <div class="nav-pill"><span class="material-symbols-rounded text-[21px]">receipt_long</span></div>
+      <span>My Logs</span>
+    </button>
+    <button type="button" onclick="switchTab('admin')" id="nav-admin" class="nav-item">
+      <div class="nav-pill"><span class="material-symbols-rounded text-[21px]">admin_panel_settings</span></div>
+      <span>Admin</span>
+    </button>
+  </nav>
+
+  <!-- ==================== DROPBOX SYNC MODAL ==================== -->
+  <div id="syncModal" class="fixed inset-0 z-50 bg-black/50 hidden items-end sm:items-center justify-center p-3">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-base font-extrabold text-slate-900">Dropbox Cloud Sync (API v2)</h3>
+          <p class="text-[11px] text-slate-500">Target: <code>/data/miv_catching_database.json</code></p>
+        </div>
+        <button type="button" onclick="closeSyncModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center cursor-pointer">
+          <span class="material-symbols-rounded text-slate-600 text-[18px]">close</span>
+        </button>
+      </div>
+
+      <!-- Permanent Refresh Token Section -->
+      <div class="p-3.5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-[#EA580C]">Permanent Refresh Token (Recommended • Never Expires)</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-200/70 text-orange-900">OAuth2</span>
+        </div>
+        <div>
+          <label for="dbxRefreshToken" class="block text-[11px] font-bold text-slate-700 mb-1">Refresh Token</label>
+          <input type="password" id="dbxRefreshToken" placeholder="Paste Dropbox offline refresh_token" class="input-m3 !py-2 !text-xs" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="dbxAppKey" class="block text-[11px] font-bold text-slate-700 mb-1">App Key (Client ID)</label>
+            <input type="text" id="dbxAppKey" placeholder="App Key" class="input-m3 !py-2 !text-xs" />
+          </div>
+          <div>
+            <label for="dbxAppSecret" class="block text-[11px] font-bold text-slate-700 mb-1">App Secret (Optional for PKCE)</label>
+            <input type="password" id="dbxAppSecret" placeholder="Leave blank if PKCE" class="input-m3 !py-2 !text-xs" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Direct Access Token (Optional Fallback) -->
+      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+        <label for="dbxAccessToken" class="block text-xs font-extrabold text-slate-700">Direct Access Token (Optional Fallback)</label>
+        <input type="password" id="dbxAccessToken" placeholder="sl.B..." class="input-m3 !py-2 !text-xs" />
+      </div>
+
+      <!-- 1-Tap New Device Sync Link -->
+      <div class="p-3.5 rounded-2xl bg-slate-900 text-white space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-orange-400">1-Tap New Device Sync Link</span>
+          <button type="button" onclick="generateDeviceSyncLink()" class="text-[11px] font-bold underline text-orange-300 cursor-pointer">Generate &amp; Copy</button>
+        </div>
+        <p class="text-[10px] text-slate-400">Encodes Refresh Token, App Key, App Secret &amp; Access Token for instant device setup.</p>
+        <input type="text" id="deviceSyncLinkOutput" readonly placeholder="Click Generate & Copy..."
+          class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[11px] text-slate-200" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="saveDropboxConfigAndSync()" class="btn-primary py-3 text-xs">Save &amp; Sync Now</button>
+        <button type="button" onclick="pullFromDropbox(true)" class="py-3 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 cursor-pointer">Pull Cloud Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PASSWORD PROMPT MODAL ==================== -->
+  <div id="passcodeModal" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-3 text-center">
+      <div class="w-11 h-11 rounded-2xl bg-[#FFF7ED] text-[#EA580C] flex items-center justify-center mx-auto">
+        <span class="material-symbols-rounded text-[24px]">lock</span>
+      </div>
+      <h3 id="passcodeTitle" class="text-base font-extrabold text-slate-900">Enter Passcode</h3>
+      <p id="passcodeSubtitle" class="text-xs text-slate-500">Default passcode is 1234</p>
+      <input type="password" id="passcodeInput" inputmode="numeric" maxlength="12" placeholder="••••"
+        class="input-m3 text-center text-lg tracking-widest" />
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="closePasscodeModal()" class="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
+        <button type="button" onclick="confirmPasscode()" class="btn-primary py-2.5 text-xs">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== AMEND LOG MODAL ==================== -->
+  <div id="amendModal" class="fixed inset-0 z-50 bg-black/50 hidden items-end sm:items-center justify-center p-3">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <h3 class="text-base font-extrabold text-slate-900">Amend Catching Record</h3>
+        <button type="button" onclick="closeAmendModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center cursor-pointer">
+          <span class="material-symbols-rounded text-[18px]">close</span>
+        </button>
+      </div>
+
+      <input type="hidden" id="amendLogId" />
+      <div class="grid grid-cols-2 gap-2.5">
+        <div>
+          <label for="amendDate" class="block text-[11px] font-bold text-slate-600 mb-1">Date</label>
+          <input type="date" id="amendDate" class="input-m3 !py-2 !text-xs" />
+        </div>
+        <div>
+          <label for="amendDO" class="block text-[11px] font-bold text-slate-600 mb-1">DO Number</label>
+          <input type="text" id="amendDO" class="input-m3 !py-2 !text-xs" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <div>
+          <label for="amendFarm" class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
+          <select id="amendFarm" onchange="populateAmendHouses()" class="input-m3 !py-2 !text-xs"></select>
+        </div>
+        <div>
+          <label for="amendHouse" class="block text-[11px] font-bold text-slate-600 mb-1">House Number</label>
+          <select id="amendHouse" class="input-m3 !py-2 !text-xs"></select>
+        </div>
+      </div>
+
+      <!-- Amend Bakul x Isi Rows -->
+      <div class="p-3 rounded-2xl bg-[#FFF7ED]/70 border border-[#FED7AA]">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-extrabold text-slate-800">Bakul × Isi Rows</span>
+          <button type="button" onclick="addAmendBakulRow()"
+            class="px-2.5 py-1 rounded-full bg-[#EA580C] text-white text-[11px] font-bold cursor-pointer">+ Add Row</button>
+        </div>
+        <div id="amendBakulRowsContainer" class="space-y-2"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <div>
+          <label for="amendEmptyWeight" class="block text-[11px] font-bold text-slate-600 mb-1">Empty Bakul Avg (kg)</label>
+          <input type="number" step="0.01" id="amendEmptyWeight" class="input-m3 !py-2 !text-xs" />
+        </div>
+        <div>
+          <label for="amendGrossWeight" class="block text-[11px] font-bold text-slate-600 mb-1">Total Gross Weight (kg)</label>
+          <input type="number" step="0.01" id="amendGrossWeight" class="input-m3 !py-2 !text-xs" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" onclick="closeAmendModal()" class="py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
+        <button type="button" onclick="saveAmendedLog()" class="btn-primary py-3 text-xs">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== INLINE PROMPT / EDIT MODAL (NO alert/confirm/prompt) ==================== -->
+  <div id="editValueModal" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-3">
+      <h3 id="editValueTitle" class="text-base font-extrabold text-slate-900">Edit Item</h3>
+      <div id="editValueFields" class="space-y-2.5"></div>
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" onclick="closeEditValueModal()" class="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
+        <button type="button" id="editValueSaveBtn" class="btn-primary py-2.5 text-xs">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== STATE & STORAGE KEYS ====================
+    const LOCAL_DB_KEY = 'miv_catching_database_v2';
+    const LOCAL_DBX_KEY = 'miv_catching_dbx_cfg_v2';
+    const DBX_CATCHING_PATH = '/data/miv_catching_database.json';
+    const DEFAULT_PASSCODE = '1234';
+
+    let currentRole = 'user';
+    let currentTab = 'catching';
+    let selectedFarmId = '';
+    let selectedHouseId = '';
+    let lastSubmittedLogId = null;
+    let pendingPasscodeCallback = null;
+    let pendingEditSaveCallback = null;
+    let selectedBalanceTargets = new Set();
+    let isSyncing = false;
+    let pollTimer = null;
+
+    // Default Initial Database
+    const defaultDatabase = {
+      updatedAt: new Date().toISOString(),
+      adminPasscode: DEFAULT_PASSCODE,
+      logPasscode: DEFAULT_PASSCODE,
+      farms: [
+        { id: 'farm_1', name: 'MIV Farm 1' },
+        { id: 'farm_2', name: 'MIV Farm 2' }
+      ],
+      houses: [
+        { id: 'h_101', farmId: 'farm_1', number: 'House 1', intake: 48000, mortality: 1420, cycle: 'C-2026-04' },
+        { id: 'h_102', farmId: 'farm_1', number: 'House 2', intake: 49500, mortality: 1615, cycle: 'C-2026-04' },
+        { id: 'h_201', farmId: 'farm_2', number: 'House A', intake: 50000, mortality: 1290, cycle: 'C-2026-04' },
+        { id: 'h_202', farmId: 'farm_2', number: 'House B', intake: 48500, mortality: 1510, cycle: 'C-2026-04' }
+      ],
+      bakulTypes: [
+        { id: 'bk_1', name: 'Bakul Standard', defaultIsi: 14 },
+        { id: 'bk_2', name: 'Bakul Besar', defaultIsi: 16 },
+        { id: 'bk_3', name: 'Bakul Kecil', defaultIsi: 12 }
+      ],
+      catchingLogs: []
+    };
+
+    let db = loadLocalDB();
+    let dbxConfig = loadDbxConfig();
+
+    // ==================== INITIALIZATION ====================
+    document.addEventListener('DOMContentLoaded', async () => {
+      parseUrlSyncPayload();
+      const today = getLocalTodayDate();
+      document.getElementById('catchDate').value = today;
+      document.getElementById('sumDateInput').value = today;
+      document.getElementById('balDateInput').value = today;
+      document.getElementById('adminReportDate').value = today;
+
+      if (!selectedFarmId && db.farms.length) selectedFarmId = db.farms[0].id;
+      const farmHouses = db.houses.filter(h => h.farmId === selectedFarmId);
+      if (!selectedHouseId && farmHouses.length) selectedHouseId = farmHouses[0].id;
+
+      renderCatchingSelectors();
+      addBakulRow();
+      populateAllDropdowns();
+      renderDailySummary();
+      renderDailyBalanceSummary();
+      renderExecutiveReport();
+      renderMyLogs();
+      renderAdminLists();
+
+      if (hasDropboxCredentials()) {
+        updateSyncBadge('syncing', 'Syncing...');
+        await pullFromDropbox(false);
+      } else {
+        updateSyncBadge('local', 'Local');
+      }
+
+      pollTimer = setInterval(async () => {
+        if (hasDropboxCredentials() && !isSyncing) {
+          await pullFromDropbox(false);
+        }
+      }, 25000);
+    });
+
+    function getLocalTodayDate() {
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      return new Date(now - offset).toISOString().slice(0, 10);
+    }
+
+    function formatDisplayDate(isoDate) {
+      if (!isoDate || !isoDate.includes('-')) return isoDate || 'All Dates';
+      const [yyyy, mm, dd] = isoDate.split('-');
+      return `${dd}-${mm}-${yyyy}`;
+    }
+
+    function loadLocalDB() {
+      try {
+        const raw = localStorage.getItem(LOCAL_DB_KEY);
+        if (!raw) return structuredClone(defaultDatabase);
+        const parsed = JSON.parse(raw);
+        const houses = (parsed.houses || defaultDatabase.houses).map(h => ({
+          ...h,
+          mortality: Number(h.mortality ?? 0)
+        }));
+        return {
+          ...structuredClone(defaultDatabase),
+          ...parsed,
+          farms: parsed.farms || defaultDatabase.farms,
+          houses,
+          bakulTypes: parsed.bakulTypes || defaultDatabase.bakulTypes,
+          catchingLogs: parsed.catchingLogs || []
+        };
+      } catch (e) {
+        return structuredClone(defaultDatabase);
+      }
+    }
+
+    function saveLocalDB() {
+      db.updatedAt = new Date().toISOString();
+      localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(db));
+    }
+
+    function loadDbxConfig() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCAL_DBX_KEY)) || {
+          refreshToken: '',
+          appKey: '',
+          appSecret: '',
+          accessToken: ''
+        };
+      } catch (e) {
+        return { refreshToken: '', appKey: '', appSecret: '', accessToken: '' };
+      }
+    }
+
+    function saveDbxConfig() {
+      localStorage.setItem(LOCAL_DBX_KEY, JSON.stringify(dbxConfig));
+    }
+
+    function hasDropboxCredentials() {
+      return Boolean((dbxConfig.refreshToken && dbxConfig.appKey) || dbxConfig.accessToken);
+    }
+
+    // ==================== 1-TAP NEW DEVICE SYNC LINK ====================
+    function parseUrlSyncPayload() {
+      const params = new URLSearchParams(window.location.search);
+      const syncParam = params.get('sync');
+      if (!syncParam) return;
+      try {
+        const decoded = JSON.parse(atob(decodeURIComponent(syncParam)));
+        dbxConfig = {
+          refreshToken: decoded.refreshToken || '',
+          appKey: decoded.appKey || '',
+          appSecret: decoded.appSecret || '',
+          accessToken: decoded.accessToken || ''
+        };
+        saveDbxConfig();
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showToast('Device linked via 1-Tap Sync Link!');
+      } catch (e) {
+        console.error('Invalid sync parameter', e);
+      }
+    }
+
+    function generateDeviceSyncLink() {
+      const payload = {
+        refreshToken: document.getElementById('dbxRefreshToken').value.trim(),
+        appKey: document.getElementById('dbxAppKey').value.trim(),
+        appSecret: document.getElementById('dbxAppSecret').value.trim(),
+        accessToken: document.getElementById('dbxAccessToken').value.trim()
+      };
+      const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
+      const url = `${window.location.origin}${window.location.pathname}?sync=${encoded}`;
+      const out = document.getElementById('deviceSyncLinkOutput');
+      out.value = url;
+      out.select();
+      copyToClipboard(url);
+      showToast('1-Tap Sync Link copied to clipboard!');
+    }
+
+    // ==================== DROPBOX CONTENT API v2 INTEGRATION ====================
+    async function getValidDropboxAccessToken() {
+      if (dbxConfig.refreshToken && dbxConfig.appKey) {
+        const body = new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: dbxConfig.refreshToken,
+          client_id: dbxConfig.appKey
+        });
+        if (dbxConfig.appSecret) {
+          body.append('client_secret', dbxConfig.appSecret);
+        }
+        const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString()
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.access_token) {
+            dbxConfig.accessToken = data.access_token;
+            saveDbxConfig();
+            return data.access_token;
+          }
+        }
+      }
+      return dbxConfig.accessToken || '';
+    }
+
+    async function pushToDropbox(silent = true) {
+      saveLocalDB();
+      if (!hasDropboxCredentials()) {
+        updateSyncBadge('local', 'Local');
+        return;
+      }
+      isSyncing = true;
+      updateSyncBadge('syncing', 'Syncing...');
+      try {
+        const token = await getValidDropboxAccessToken();
+        if (!token) throw new Error('No valid token');
+        const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Dropbox-API-Arg': JSON.stringify({
+              path: DBX_CATCHING_PATH,
+              mode: 'overwrite',
+              autorename: false,
+              mute: true
+            }),
+            'Content-Type': 'application/octet-stream'
+          },
+          body: JSON.stringify(db, null, 2)
+        });
+        if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+        updateSyncBadge('synced', 'Synced');
+        if (!silent) showToast('Synced to Dropbox!');
+      } catch (err) {
+        console.warn('Dropbox push error:', err);
+        updateSyncBadge('error', 'Sync Err');
+        if (!silent) showToast('Dropbox sync failed — saved locally');
+      } finally {
+        isSyncing = false;
+      }
+    }
+
+    async function pullFromDropbox(manual = false) {
+      if (!hasDropboxCredentials()) return;
+      isSyncing = true;
+      try {
+        const token = await getValidDropboxAccessToken();
+        if (!token) throw new Error('No valid token');
+        const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Dropbox-API-Arg': JSON.stringify({ path: DBX_CATCHING_PATH })
+          }
+        });
+        if (res.status === 409) {
+          await pushToDropbox(true);
+          return;
+        }
+        if (!res.ok) throw new Error(`Download failed (${res.status})`);
+        const cloudDb = await res.json();
+
+        const mergedMap = new Map();
+        (db.catchingLogs || []).forEach(item => mergedMap.set(item.id, item));
+        (cloudDb.catchingLogs || []).forEach(item => mergedMap.set(item.id, item));
+
+        const cloudNewer = !db.updatedAt || (cloudDb.updatedAt && cloudDb.updatedAt >= db.updatedAt);
+        if (cloudNewer) {
+          db.farms = cloudDb.farms || db.farms;
+          db.houses = (cloudDb.houses || db.houses).map(h => ({
+            ...h,
+            mortality: Number(h.mortality ?? 0)
+          }));
+          db.bakulTypes = cloudDb.bakulTypes || db.bakulTypes;
+        }
+        db.catchingLogs = Array.from(mergedMap.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        saveLocalDB();
+
+        renderCatchingSelectors();
+        populateAllDropdowns();
+        renderDailySummary();
+        renderDailyBalanceSummary();
+        renderExecutiveReport();
+        renderMyLogs();
+        renderAdminLists();
+        updateSyncBadge('synced', 'Synced');
+        if (manual) showToast('Cloud data hydrated!');
+      } catch (err) {
+        console.warn('Dropbox pull error:', err);
+        updateSyncBadge('error', 'Offline');
+        if (manual) showToast('Could not pull from Dropbox');
+      } finally {
+        isSyncing = false;
+      }
+    }
+
+    function updateSyncBadge(state, label) {
+      const dot = document.getElementById('syncDot');
+      const txt = document.getElementById('syncLabel');
+      txt.textContent = label;
+      dot.className = 'w-2 h-2 rounded-full ' + (
+        state === 'synced' ? 'bg-emerald-400' :
+        state === 'syncing' ? 'bg-amber-300 animate-ping' :
+        state === 'error' ? 'bg-rose-400' : 'bg-amber-300'
+      );
+    }
+
+    function openSyncModal() {
+      document.getElementById('dbxRefreshToken').value = dbxConfig.refreshToken || '';
+      document.getElementById('dbxAppKey').value = dbxConfig.appKey || '';
+      document.getElementById('dbxAppSecret').value = dbxConfig.appSecret || '';
+      document.getElementById('dbxAccessToken').value = dbxConfig.accessToken || '';
+      document.getElementById('syncModal').classList.remove('hidden');
+      document.getElementById('syncModal').classList.add('flex');
+    }
+
+    function closeSyncModal() {
+      document.getElementById('syncModal').classList.add('hidden');
+      document.getElementById('syncModal').classList.remove('flex');
+    }
+
+    async function saveDropboxConfigAndSync() {
+      dbxConfig = {
+        refreshToken: document.getElementById('dbxRefreshToken').value.trim(),
+        appKey: document.getElementById('dbxAppKey').value.trim(),
+        appSecret: document.getElementById('dbxAppSecret').value.trim(),
+        accessToken: document.getElementById('dbxAccessToken').value.trim()
+      };
+      saveDbxConfig();
+      closeSyncModal();
+      await pullFromDropbox(true);
+    }
+
+    // ==================== ROLE & NAVIGATION ====================
+    function switchRole(targetRole) {
+      if (targetRole === currentRole) return;
+      if (targetRole === 'admin') {
+        requestPasscode('Admin Access', 'Enter Admin password (default: 1234)', () => {
+          currentRole = 'admin';
+          updateRoleUI();
+          switchTab('admin');
+          showToast('Switched to Admin Mode');
+        });
+      } else {
+        currentRole = 'user';
+        updateRoleUI();
+        if (currentTab === 'admin') switchTab('catching');
+        showToast('Switched to User Mode');
+      }
+    }
+
+    function updateRoleUI() {
+      const uBtn = document.getElementById('roleUserBtn');
+      const aBtn = document.getElementById('roleAdminBtn');
+      if (currentRole === 'admin') {
+        aBtn.className = 'px-2.5 py-1 rounded-full bg-white text-[#EA580C] shadow-sm transition cursor-pointer';
+        uBtn.className = 'px-2.5 py-1 rounded-full text-orange-100 transition cursor-pointer';
+      } else {
+        uBtn.className = 'px-2.5 py-1 rounded-full bg-white text-[#EA580C] shadow-sm transition cursor-pointer';
+        aBtn.className = 'px-2.5 py-1 rounded-full text-orange-100 transition cursor-pointer';
+      }
+    }
+
+    function switchTab(tabName) {
+      if (tabName === 'admin' && currentRole !== 'admin') {
+        requestPasscode('Admin Access Required', 'Enter Admin password (default: 1234)', () => {
+          currentRole = 'admin';
+          updateRoleUI();
+          activateTab(tabName);
+        });
+        return;
+      }
+      activateTab(tabName);
+    }
+
+    function activateTab(tabName) {
+      currentTab = tabName;
+      ['catching', 'summary', 'executive', 'logs', 'admin'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tabName);
+        document.getElementById(`nav-${t}`).classList.toggle('active', t === tabName);
+      });
+      if (tabName === 'summary') {
+        renderDailySummary();
+        renderDailyBalanceSummary();
+      }
+      if (tabName === 'executive') renderExecutiveReport();
+      if (tabName === 'logs') renderMyLogs();
+      if (tabName === 'admin') renderAdminLists();
+    }
+
+    // ==================== PASSCODE & INLINE EDIT MODALS ====================
+    function requestPasscode(title, subtitle, onSuccess) {
+      document.getElementById('passcodeTitle').textContent = title;
+      document.getElementById('passcodeSubtitle').textContent = subtitle;
+      document.getElementById('passcodeInput').value = '';
+      pendingPasscodeCallback = onSuccess;
+      document.getElementById('passcodeModal').classList.remove('hidden');
+      document.getElementById('passcodeModal').classList.add('flex');
+      setTimeout(() => document.getElementById('passcodeInput').focus(), 100);
+    }
+
+    function closePasscodeModal() {
+      document.getElementById('passcodeModal').classList.add('hidden');
+      document.getElementById('passcodeModal').classList.remove('flex');
+      pendingPasscodeCallback = null;
+    }
+
+    function confirmPasscode() {
+      const entered = document.getElementById('passcodeInput').value.trim();
+      if (entered === (db.adminPasscode || DEFAULT_PASSCODE)) {
+        const cb = pendingPasscodeCallback;
+        closePasscodeModal();
+        if (cb) cb();
+      } else {
+        showToast('Incorrect password!');
+      }
+    }
+
+    function openEditValueModal(title, fields, onSave) {
+      document.getElementById('editValueTitle').textContent = title;
+      document.getElementById('editValueFields').innerHTML = fields.map(f => `
+        <div>
+          <label for="${f.id}" class="block text-[11px] font-bold text-slate-600 mb-1">${escapeHtml(f.label)}</label>
+          <input type="${f.type || 'text'}" id="${f.id}" value="${escapeHtml(f.value ?? '')}" class="input-m3 !py-2 !text-xs" />
+        </div>
+      `).join('');
+      pendingEditSaveCallback = onSave;
+      document.getElementById('editValueSaveBtn').onclick = () => {
+        if (pendingEditSaveCallback) pendingEditSaveCallback();
+      };
+      document.getElementById('editValueModal').classList.remove('hidden');
+      document.getElementById('editValueModal').classList.add('flex');
+    }
+
+    function closeEditValueModal() {
+      document.getElementById('editValueModal').classList.add('hidden');
+      document.getElementById('editValueModal').classList.remove('flex');
+      pendingEditSaveCallback = null;
+    }
+
+    // ==================== CATCHING ENTRY FORM & BAKUL x ISI ROWS ====================
+    function renderCatchingSelectors() {
+      const farmContainer = document.getElementById('farmPillContainer');
+      farmContainer.innerHTML = db.farms.map(f => `
+        <button type="button" onclick="selectFarm('${f.id}')"
+          class="selector-pill ${f.id === selectedFarmId ? 'active' : ''}">
+          ${escapeHtml(f.name)}
+        </button>
+      `).join('');
+
+      const houses = db.houses.filter(h => h.farmId === selectedFarmId);
+      if (!houses.some(h => h.id === selectedHouseId)) {
+        selectedHouseId = houses.length ? houses[0].id : '';
+      }
+
+      const houseContainer = document.getElementById('housePillContainer');
+      houseContainer.innerHTML = houses.length
+        ? houses.map(h => `
+            <button type="button" onclick="selectHouse('${h.id}')"
+              class="selector-pill ${h.id === selectedHouseId ? 'active' : ''}">
+              ${escapeHtml(h.number)}
+            </button>
+          `).join('')
+        : `<span class="text-xs text-slate-400">No houses assigned to this farm yet.</span>`;
+
+      const activeHouse = houses.find(h => h.id === selectedHouseId);
+      document.getElementById('selectedHouseIntakeBadge').textContent = activeHouse
+        ? `Intake: ${Number(activeHouse.intake || 0).toLocaleString()} birds`
+        : '';
+    }
+
+    function selectFarm(farmId) {
+      selectedFarmId = farmId;
+      const houses = db.houses.filter(h => h.farmId === farmId);
+      selectedHouseId = houses.length ? houses[0].id : '';
+      renderCatchingSelectors();
+    }
+
+    function selectHouse(houseId) {
+      selectedHouseId = houseId;
+      renderCatchingSelectors();
+    }
+
+    function addBakulRow(preset = null) {
+      const container = document.getElementById('bakulRowsContainer');
+      const rowId = 'brow_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const defaultBakul = preset?.bakulId || (db.bakulTypes[0]?.id || '');
+      const defaultIsi = preset?.isi ?? (db.bakulTypes.find(b => b.id === defaultBakul)?.defaultIsi || 14);
+      const defaultQty = preset?.qty ?? '';
+
+      const optionsHtml = db.bakulTypes.map(b =>
+        `<option value="${b.id}" ${b.id === defaultBakul ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
+      ).join('');
+
+      const rowEl = document.createElement('div');
+      rowEl.id = rowId;
+      rowEl.className = 'grid grid-cols-12 gap-1.5 items-center bg-white p-2 rounded-xl border border-orange-200/80 shadow-xs';
+      rowEl.innerHTML = `
+        <div class="col-span-5">
+          <select onchange="onBakulTypeRowChange('${rowId}')" class="bakul-select input-m3 !py-2 !px-2 !text-xs">
+            ${optionsHtml}
+          </select>
+        </div>
+        <div class="col-span-3">
+          <input type="number" min="0" step="1" placeholder="Bakul" value="${defaultQty}"
+            oninput="recalculateCatching()"
+            class="bakul-qty input-m3 !py-2 !px-2 !text-xs text-center" />
+        </div>
+        <div class="col-span-3">
+          <input type="number" min="0" step="1" placeholder="Isi" value="${defaultIsi}"
+            oninput="recalculateCatching()"
+            class="bakul-isi input-m3 !py-2 !px-2 !text-xs text-center" />
+        </div>
+        <div class="col-span-1 flex justify-center">
+          <button type="button" onclick="removeBakulRow('${rowId}')"
+            class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer">
+            <span class="material-symbols-rounded text-[17px]">delete</span>
+          </button>
+        </div>
+      `;
+      container.appendChild(rowEl);
+      recalculateCatching();
+    }
+
+    function onBakulTypeRowChange(rowId) {
+      const row = document.getElementById(rowId);
+      if (!row) return;
+      const selectedId = row.querySelector('.bakul-select').value;
+      const bType = db.bakulTypes.find(b => b.id === selectedId);
+      if (bType && bType.defaultIsi) {
+        row.querySelector('.bakul-isi').value = bType.defaultIsi;
+      }
+      recalculateCatching();
+    }
+
+    function removeBakulRow(rowId) {
+      const container = document.getElementById('bakulRowsContainer');
+      if (container.children.length <= 1) {
+        showToast('At least 1 Bakul × Isi row is required');
+        return;
+      }
+      document.getElementById(rowId)?.remove();
+      recalculateCatching();
+    }
+
+    function getBakulRowsData() {
+      const rows = Array.from(document.querySelectorAll('#bakulRowsContainer > div'));
+      return rows.map(row => {
+        const bakulId = row.querySelector('.bakul-select')?.value || '';
+        const bakulObj = db.bakulTypes.find(b => b.id === bakulId);
+        const qty = Number(row.querySelector('.bakul-qty')?.value || 0);
+        const isi = Number(row.querySelector('.bakul-isi')?.value || 0);
+        return {
+          bakulId,
+          bakulName: bakulObj ? bakulObj.name : 'Bakul',
+          qty,
+          isi,
+          subtotalBirds: qty * isi
+        };
+      });
+    }
+
+    function recalculateCatching() {
+      const items = getBakulRowsData();
+      const totalBakul = items.reduce((sum, r) => sum + r.qty, 0);
+      const totalBirds = items.reduce((sum, r) => sum + r.subtotalBirds, 0);
+
+      const orderBakulInput = document.getElementById('catchTotalOrderBakul');
+      const totalOrderBakul = Number(orderBakulInput?.value || 0);
+      const balanceBadge = document.getElementById('bakulBalanceStatus');
+      const submitBtn = document.getElementById('submitCatchingBtn');
+
+      const isBalanced = totalOrderBakul > 0 && totalBakul === totalOrderBakul;
+
+      if (balanceBadge) {
+        if (totalOrderBakul <= 0) {
+          balanceBadge.textContent = 'Enter Total Order (Bakul)';
+          balanceBadge.className = 'text-[11px] font-bold text-slate-400';
+        } else if (isBalanced) {
+          balanceBadge.textContent = `✓ Balanced (${totalBakul}/${totalOrderBakul})`;
+          balanceBadge.className = 'text-[11px] font-extrabold text-emerald-600';
+        } else {
+          const diff = totalBakul - totalOrderBakul;
+          const diffLabel = diff > 0 ? `+${diff} over` : `${Math.abs(diff)} short`;
+          balanceBadge.textContent = `✕ Unbalanced (${totalBakul}/${totalOrderBakul} • ${diffLabel})`;
+          balanceBadge.className = 'text-[11px] font-extrabold text-rose-600';
+        }
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = !isBalanced;
+      }
+
+      const emptyAvg = Number(document.getElementById('catchEmptyWeight').value || 0);
+      const grossWeight = Number(document.getElementById('catchGrossWeight').value || 0);
+
+      const totalEmptyWeight = emptyAvg * totalBakul;
+      const netWeight = Math.max(0, grossWeight - totalEmptyWeight);
+      const avgBirdWeight = totalBirds > 0 ? (netWeight / totalBirds) : 0;
+
+      document.getElementById('rowTotalBakulBadge').textContent = totalBakul.toLocaleString();
+      document.getElementById('rowTotalBirdsBadge').textContent = totalBirds.toLocaleString();
+      document.getElementById('resNetWeight').textContent = netWeight.toFixed(2);
+      document.getElementById('resTotalBirds').textContent = totalBirds.toLocaleString();
+      document.getElementById('resAvgBirdWeight').textContent = `${avgBirdWeight.toFixed(3)} kg`;
+
+      return { items, totalOrderBakul, totalBakul, totalBirds, emptyAvg, grossWeight, netWeight, avgBirdWeight, isBalanced };
+    }
+
+    async function submitCatchingReport() {
+      const date = document.getElementById('catchDate').value;
+      const doNumber = document.getElementById('catchDO').value.trim();
+      const farm = db.farms.find(f => f.id === selectedFarmId);
+      const house = db.houses.find(h => h.id === selectedHouseId);
+      const calc = recalculateCatching();
+
+      if (!date || !farm || !house) {
+        showToast('Please select Farm and House');
+        return;
+      }
+      if (!doNumber) {
+        showToast('Please enter Delivery Order (DO) Number');
+        return;
+      }
+      if (!calc.isBalanced) {
+        showToast('Bakul × Isi must match Total Order (Bakul)');
+        return;
+      }
+      if (calc.totalBakul <= 0 || calc.totalBirds <= 0) {
+        showToast('Please enter Bakul quantity & Isi');
+        return;
+      }
+      if (calc.grossWeight <= 0) {
+        showToast('Please enter Total Gross Weight');
+        return;
+      }
+
+      const logEntry = {
+        id: 'catch_' + Date.now(),
+        createdAt: new Date().toISOString(),
+        date,
+        farmId: farm.id,
+        farmName: farm.name,
+        houseId: house.id,
+        houseNumber: house.number,
+        cycle: house.cycle || 'C-2026-04',
+        doNumber,
+        totalOrderBakul: calc.totalOrderBakul,
+        bakulRows: calc.items.filter(r => r.qty > 0),
+        totalBakul: calc.totalBakul,
+        emptyBakulAvg: calc.emptyAvg,
+        grossWeight: calc.grossWeight,
+        netWeight: Number(calc.netWeight.toFixed(2)),
+        totalBirds: calc.totalBirds,
+        avgWeight: Number(calc.avgBirdWeight.toFixed(4))
+      };
+
+      db.catchingLogs.unshift(logEntry);
+      lastSubmittedLogId = logEntry.id;
+
+      document.getElementById('catchDO').value = '';
+      document.getElementById('catchTotalOrderBakul').value = '';
+      document.getElementById('catchGrossWeight').value = '';
+      document.getElementById('bakulRowsContainer').innerHTML = '';
+      addBakulRow();
+      recalculateCatching();
+
+      renderDailySummary();
+      renderDailyBalanceSummary();
+      renderExecutiveReport();
+      renderMyLogs();
+
+      showToast('Catching Report Submitted!');
+      await pushToDropbox(true);
+    }
+
+    // ==================== CATCHING DAILY SUMMARY ====================
+    function populateAllDropdowns() {
+      const sumFarm = document.getElementById('sumFarmSelect');
+      sumFarm.innerHTML = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+      onSummaryFarmChange();
+
+      const balFarm = document.getElementById('balFarmSelect');
+      if (balFarm) {
+        balFarm.innerHTML = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+        onBalanceFarmChange();
+      }
+
+      const logFarm = document.getElementById('logFilterFarm');
+      logFarm.innerHTML = `<option value="ALL">All Farms</option>` +
+        db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+
+      const adminRepFarm = document.getElementById('adminReportFarm');
+      const newHouseFarm = document.getElementById('newHouseFarm');
+      const farmOpts = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+      adminRepFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
+      newHouseFarm.innerHTML = farmOpts;
+
+      const cycles = new Set(['C-2026-04']);
+      db.houses.forEach(h => { if (h.cycle) cycles.add(h.cycle); });
+      const execCycle = document.getElementById('execCycleSelect');
+      const prevVal = execCycle.value;
+      execCycle.innerHTML = `<option value="ALL">All Cycles</option>` +
+        Array.from(cycles).map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      if (Array.from(cycles).includes(prevVal)) execCycle.value = prevVal;
+    }
+
+    function onSummaryFarmChange() {
+      const farmId = document.getElementById('sumFarmSelect').value;
+      const houses = db.houses.filter(h => h.farmId === farmId);
+      const sumHouse = document.getElementById('sumHouseSelect');
+      sumHouse.innerHTML = `<option value="ALL">All Houses</option>` +
+        houses.map(h => `<option value="${h.id}">${escapeHtml(h.number)}</option>`).join('');
+      renderDailySummary();
+    }
+
+    function getFilteredDailySummaryData() {
+      const farmId = document.getElementById('sumFarmSelect').value;
+      const date = document.getElementById('sumDateInput').value;
+      const houseId = document.getElementById('sumHouseSelect').value;
+
+      const filtered = db.catchingLogs.filter(l => {
+        if (farmId && l.farmId !== farmId) return false;
+        if (date && l.date !== date) return false;
+        if (houseId && houseId !== 'ALL' && l.houseId !== houseId) return false;
+        return true;
+      });
+
+      const byHouse = {};
+      filtered.forEach(l => {
+        const key = l.houseNumber || 'Unknown';
+        if (!byHouse[key]) byHouse[key] = { net: 0, birds: 0, dos: [] };
+        byHouse[key].net += Number(l.netWeight || 0);
+        byHouse[key].birds += Number(l.totalBirds || 0);
+        byHouse[key].dos.push(l.doNumber);
+      });
+
+      return { filtered, byHouse };
+    }
+
+    function renderDailySummary() {
+      const { filtered, byHouse } = getFilteredDailySummaryData();
+
+      const totalNet = filtered.reduce((s, l) => s + Number(l.netWeight || 0), 0);
+      const totalBirds = filtered.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
+      const avgWt = totalBirds > 0 ? (totalNet / totalBirds) : 0;
+
+      document.getElementById('sumTotalNetWeight').textContent = `${totalNet.toFixed(2)} kg`;
+      document.getElementById('sumTotalBirds').textContent = totalBirds.toLocaleString();
+      document.getElementById('sumAvgWeight').textContent = `${avgWt.toFixed(3)} kg`;
+
+      const breakdownEl = document.getElementById('dailySummaryBreakdown');
+      const houseKeys = Object.keys(byHouse).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+      );
+      if (!houseKeys.length) {
+        breakdownEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching records found for selected Group &amp; Date.</div>`;
+        return;
+      }
+
+      breakdownEl.innerHTML = houseKeys.map(hNum => {
+        const item = byHouse[hNum];
+        const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
+        return `
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-extrabold text-slate-900">${escapeHtml(hNum)}</span>
+              <p class="text-[11px] text-slate-500">DOs: ${escapeHtml(item.dos.join(', '))}</p>
+            </div>
+            <div class="text-right text-xs">
+              <p class="font-extrabold text-[#EA580C]">${item.net.toFixed(2)} kg</p>
+              <p class="text-[11px] text-slate-600 font-semibold">${item.birds.toLocaleString()} birds • Avg ${hAvg.toFixed(3)} kg</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function shareDailySummaryWhatsApp() {
+      const farmName = db.farms.find(f => f.id === document.getElementById('sumFarmSelect').value)?.name || 'All Farms';
+      const rawDate = document.getElementById('sumDateInput').value;
+      const formattedDate = formatDisplayDate(rawDate);
+      const { byHouse } = getFilteredDailySummaryData();
+
+      const houseKeys = Object.keys(byHouse).sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+      );
+      const houseLines = houseKeys.length
+        ? houseKeys.map(hNum => {
+            const item = byHouse[hNum];
+            const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
+            return `${hNum} - ${item.net.toFixed(2)} kg / ${item.birds.toLocaleString()} - ${hAvg.toFixed(3)} kg`;
+          })
+        : ['No catching records'];
+
+      const msg = [
+        farmName,
+        `Date: ${formattedDate}`,
+        ...houseLines
+      ].join('\n');
+
+      openWhatsApp(msg);
+    }
+
+    // ==================== DAILY BALANCE SUMMARY (INDIVIDUAL & 2-HOUSE BATCH) ====================
+    function buildBalanceBatches(houses) {
+      const batches = [];
+      for (let i = 0; i < houses.length; i += 2) {
+        const h1 = houses[i];
+        const h2 = houses[i + 1] || null;
+        const batchNum = Math.floor(i / 2) + 1;
+        batches.push({
+          key: `batch_${batchNum}`,
+          label: `Batch ${batchNum}`,
+          houses: h2 ? [h1, h2] : [h1],
+          subtitle: h2 ? `${h1.number} + ${h2.number}` : `${h1.number}`
+        });
+      }
+      return batches;
+    }
+
+    function onBalanceFarmChange() {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const houses = db.houses.filter(h => h.farmId === farmId);
+      const batches = buildBalanceBatches(houses);
+
+      selectedBalanceTargets = new Set();
+      houses.forEach(h => selectedBalanceTargets.add(`house_${h.id}`));
+      batches.forEach(b => selectedBalanceTargets.add(b.key));
+
+      renderBalanceTargetChips();
+      renderDailyBalanceSummary();
+    }
+
+    function selectAllBalanceTargets(selectAll) {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const houses = db.houses.filter(h => h.farmId === farmId);
+      const batches = buildBalanceBatches(houses);
+
+      selectedBalanceTargets = new Set();
+      if (selectAll) {
+        houses.forEach(h => selectedBalanceTargets.add(`house_${h.id}`));
+        batches.forEach(b => selectedBalanceTargets.add(b.key));
+      }
+      renderBalanceTargetChips();
+      renderDailyBalanceSummary();
+    }
+
+    function toggleBalanceTarget(targetKey) {
+      if (selectedBalanceTargets.has(targetKey)) {
+        selectedBalanceTargets.delete(targetKey);
+      } else {
+        selectedBalanceTargets.add(targetKey);
+      }
+      renderBalanceTargetChips();
+      renderDailyBalanceSummary();
+    }
+
+    function renderBalanceTargetChips() {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const houses = db.houses.filter(h => h.farmId === farmId);
+      const batches = buildBalanceBatches(houses);
+      const container = document.getElementById('balMultiTargetContainer');
+      if (!container) return;
+
+      const houseChips = houses.map(h => {
+        const key = `house_${h.id}`;
+        const active = selectedBalanceTargets.has(key);
+        return `
+          <button type="button" onclick="toggleBalanceTarget('${key}')"
+            class="px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer flex items-center gap-1 ${
+              active
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300'
+            }">
+            <span>${active ? '✓' : '+'}</span>
+            <span>${escapeHtml(h.number)}</span>
+          </button>
+        `;
+      }).join('');
+
+      const batchChips = batches.map(b => {
+        const active = selectedBalanceTargets.has(b.key);
+        return `
+          <button type="button" onclick="toggleBalanceTarget('${b.key}')"
+            class="px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer flex items-center gap-1 ${
+              active
+                ? 'bg-slate-900 text-orange-400 border-slate-900 shadow-xs'
+                : 'bg-white text-slate-700 border-slate-300 hover:border-orange-300'
+            }">
+            <span>${active ? '✓' : '+'}</span>
+            <span>${escapeHtml(b.label)} (${escapeHtml(b.subtitle)})</span>
+          </button>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div>
+          <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Individual Houses</span>
+          <div class="flex flex-wrap gap-1.5">${houseChips || '<span class="text-xs text-slate-400">No houses</span>'}</div>
+        </div>
+        <div>
+          <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Batch No. (2 Houses / Batch)</span>
+          <div class="flex flex-wrap gap-1.5">${batchChips || '<span class="text-xs text-slate-400">No batches</span>'}</div>
+        </div>
+      `;
+    }
+
+    function getHouseBalanceMetrics(farm, house, upToDate) {
+      const intake = Number(house.intake || 0);
+      const totalCatching = db.catchingLogs
+        .filter(l => l.farmId === farm.id && l.houseId === house.id && (!upToDate || l.date <= upToDate))
+        .reduce((sum, l) => sum + Number(l.totalBirds || 0), 0);
+
+      const totalMortality = Number(house.mortality || 0);
+      const balance = intake - totalCatching - totalMortality;
+
+      return { intake, totalCatching, totalMortality, balance };
+    }
+
+    function renderDailyBalanceSummary() {
+      const farmId = document.getElementById('balFarmSelect').value;
+      const upToDate = document.getElementById('balDateInput').value;
+      const farm = db.farms.find(f => f.id === farmId);
+      const breakdownEl = document.getElementById('dailyBalanceBreakdown');
+      const outputEl = document.getElementById('dailyBalanceTextOutput');
+
+      if (!farm) {
+        breakdownEl.innerHTML = '';
+        outputEl.textContent = 'No farm selected.';
+        return;
+      }
+
+      const houses = db.houses.filter(h => h.farmId === farm.id);
+      const batches = buildBalanceBatches(houses);
+
+      const selectedHouses = houses.filter(h => selectedBalanceTargets.has(`house_${h.id}`));
+      const selectedBatches = batches.filter(b => selectedBalanceTargets.has(b.key));
+
+      if (!selectedHouses.length && !selectedBatches.length) {
+        breakdownEl.innerHTML = `<div class="p-3 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">Tap one or more Houses or Batches above to display balance.</div>`;
+        outputEl.innerHTML = `<strong class="text-orange-400">${escapeHtml(farm.name)}</strong>\n<span>Balance:</span>\n<span class="text-slate-400">(No house or batch selected)</span>`;
+        window._latestBalanceWhatsAppText = `*${farm.name}*\nBalance:\n(No house or batch selected)`;
+        return;
+      }
+
+      const cardRows = [];
+      const htmlLines = [
+        `<strong class="text-orange-400 text-sm">${escapeHtml(farm.name)}</strong>`,
+        `<span class="text-white font-normal">Balance:</span>`
+      ];
+      const waLines = [
+        `*${farm.name}*`,
+        `Balance:`
+      ];
+
+      selectedHouses.forEach(h => {
+        const m = getHouseBalanceMetrics(farm, h, upToDate);
+        cardRows.push(`
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-extrabold text-slate-900">${escapeHtml(h.number)}</span>
+              <p class="text-[11px] text-slate-500">In: ${m.intake.toLocaleString()} | Catch: ${m.totalCatching.toLocaleString()} | Mort: ${m.totalMortality.toLocaleString()}</p>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-extrabold text-slate-900">${m.balance.toLocaleString()}</span>
+            </div>
+          </div>
+        `);
+        htmlLines.push(`<strong>${escapeHtml(h.number)}</strong> - <span class="text-emerald-400 font-normal">${m.balance.toLocaleString()}</span>`);
+        waLines.push(`*${h.number}* - ${m.balance.toLocaleString()}`);
+      });
+
+      selectedBatches.forEach(b => {
+        const batchBalance = b.houses.reduce((sum, h) => sum + getHouseBalanceMetrics(farm, h, upToDate).balance, 0);
+        cardRows.push(`
+          <div class="p-3 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] flex items-center justify-between">
+            <div>
+              <span class="text-xs font-extrabold text-[#EA580C]">${escapeHtml(b.label)}</span>
+              <p class="text-[11px] text-slate-600">${escapeHtml(b.subtitle)}</p>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-extrabold text-[#EA580C]">${batchBalance.toLocaleString()}</span>
+            </div>
+          </div>
+        `);
+        htmlLines.push(`<strong>${escapeHtml(b.label)}</strong> - <span class="text-orange-400 font-normal">${batchBalance.toLocaleString()}</span>`);
+        waLines.push(`*${b.label}* - ${batchBalance.toLocaleString()}`);
+      });
+
+      breakdownEl.innerHTML = cardRows.join('');
+      outputEl.innerHTML = htmlLines.join('\n');
+      window._latestBalanceWhatsAppText = waLines.join('\n');
+    }
+
+    function shareDailyBalanceWhatsApp() {
+      if (!window._latestBalanceWhatsAppText) renderDailyBalanceSummary();
+      openWhatsApp(window._latestBalanceWhatsAppText || '');
+    }
+
+    // ==================== EXECUTIVE REPORT ====================
+    function renderExecutiveReport() {
+      const cycleFilter = document.getElementById('execCycleSelect').value;
+      const container = document.getElementById('executiveReportContainer');
+
+      container.innerHTML = db.farms.map(farm => {
+        const houses = db.houses.filter(h => h.farmId === farm.id && (cycleFilter === 'ALL' || h.cycle === cycleFilter));
+        if (!houses.length) return '';
+
+        const houseCards = houses.map(house => {
+          const birdsIntake = Number(house.intake || 0);
+          const totalMortality = Number(house.mortality || 0);
+
+          const houseLogs = db.catchingLogs.filter(l => l.farmId === farm.id && l.houseId === house.id);
+          const totalCatchingNetWt = houseLogs.reduce((s, l) => s + Number(l.netWeight || 0), 0);
+          const totalCaughtBirds = houseLogs.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
+
+          const estimatedBalance = birdsIntake - totalMortality;
+          const remainingLive = estimatedBalance - totalCaughtBirds;
+
+          return `
+            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-extrabold text-slate-900">${escapeHtml(house.number)}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C]">${escapeHtml(house.cycle || 'Active')}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-white p-2 rounded-xl border border-slate-100">
+                  <span class="block text-[10px] text-slate-400 font-bold">Birds Intake</span>
+                  <strong class="text-slate-900">${birdsIntake.toLocaleString()}</strong>
+                </div>
+                <div class="bg-white p-2 rounded-xl border border-slate-100">
+                  <span class="block text-[10px] text-slate-400 font-bold">Total Catching Net Wt</span>
+                  <strong class="text-[#EA580C]">${totalCatchingNetWt.toFixed(2)} kg</strong>
+                </div>
+                <div class="bg-white p-2 rounded-xl border border-slate-100">
+                  <span class="block text-[10px] text-slate-400 font-bold">Total Mortality</span>
+                  <strong class="text-rose-600">${totalMortality.toLocaleString()}</strong>
+                </div>
+                <div class="bg-white p-2 rounded-xl border border-slate-100">
+                  <span class="block text-[10px] text-slate-400 font-bold">Estimated Balance</span>
+                  <strong class="text-emerald-700">${estimatedBalance.toLocaleString()}</strong>
+                </div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-500 pt-0.5 px-1">
+                <span>Caught Birds: <strong>${totalCaughtBirds.toLocaleString()}</strong></span>
+                <span>Uncaught Est: <strong>${remainingLive.toLocaleString()}</strong></span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="space-y-2">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[#EA580C]"></span>
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-700">${escapeHtml(farm.name)}</h3>
+            </div>
+            ${houseCards}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function shareExecutiveWhatsApp() {
+      const lines = ['*MIV EXECUTIVE FARM REPORT*', `Date: ${formatDisplayDate(getLocalTodayDate())}`, ''];
+      db.farms.forEach(farm => {
+        lines.push(`*${farm.name}*`);
+        db.houses.filter(h => h.farmId === farm.id).forEach(house => {
+          const intake = Number(house.intake || 0);
+          const mort = Number(house.mortality || 0);
+          const estBal = intake - mort;
+          const netWt = db.catchingLogs
+            .filter(l => l.farmId === farm.id && l.houseId === house.id)
+            .reduce((s, l) => s + Number(l.netWeight || 0), 0);
+
+          lines.push(`- ${house.number}: Intake ${intake.toLocaleString()} | Net Wt ${netWt.toFixed(2)} kg | Mort ${mort.toLocaleString()} | Est Bal ${estBal.toLocaleString()}`);
+        });
+        lines.push('');
+      });
+      openWhatsApp(lines.join('\n'));
+    }
+
+    // ==================== MY LOGS (VIEW, AMEND, DELETE WITH PASSCODE) ====================
+    function renderMyLogs() {
+      const farmFilter = document.getElementById('logFilterFarm').value;
+      const dateFilter = document.getElementById('logFilterDate').value;
+
+      const logs = db.catchingLogs.filter(l => {
+        if (farmFilter && farmFilter !== 'ALL' && l.farmId !== farmFilter) return false;
+        if (dateFilter && l.date !== dateFilter) return false;
+        return true;
+      });
+
+      document.getElementById('logsCountBadge').textContent = logs.length;
+      const listEl = document.getElementById('myLogsList');
+
+      if (!logs.length) {
+        listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching logs recorded yet.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = logs.map(log => {
+        const bakulSummary = (log.bakulRows || [])
+          .map(r => `${r.bakulName} (${r.qty}×${r.isi})`)
+          .join(', ');
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-extrabold text-slate-900">${escapeHtml(log.farmName)} • ${escapeHtml(log.houseNumber)}</span>
+                </div>
+                <p class="text-[11px] text-slate-500 font-medium">${formatDisplayDate(log.date)} • DO: <strong>${escapeHtml(log.doNumber)}</strong></p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-[#FFF7ED] text-[#EA580C] text-xs font-extrabold">
+                ${Number(log.netWeight).toFixed(2)} kg
+              </span>
+            </div>
+
+            <p class="text-[11px] text-slate-600 bg-white px-2.5 py-1.5 rounded-xl border border-slate-100">
+              ${escapeHtml(bakulSummary || `${log.totalBakul} bakul`)} → <strong>${Number(log.totalBirds).toLocaleString()} birds</strong>
+            </p>
+
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-slate-500">Gross: ${Number(log.grossWeight).toFixed(2)} kg • Empty: ${log.emptyBakulAvg} kg</span>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="promptAmendLog('${log.id}')"
+                  class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold cursor-pointer">
+                  Amend
+                </button>
+                <button type="button" onclick="promptDeleteLog('${log.id}')"
+                  class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-bold cursor-pointer">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function promptAmendLog(logId) {
+      requestPasscode('Amend Log Verification', 'Enter password to amend record (default: 1234)', () => {
+        openAmendModal(logId);
+      });
+    }
+
+    function promptDeleteLog(logId) {
+      requestPasscode('Delete Log Verification', 'Enter password to delete record (default: 1234)', async () => {
+        db.catchingLogs = db.catchingLogs.filter(l => l.id !== logId);
+        renderMyLogs();
+        renderDailySummary();
+        renderDailyBalanceSummary();
+        renderExecutiveReport();
+        showToast('Record deleted');
+        await pushToDropbox(true);
+      });
+    }
+
+    function openAmendModal(logId) {
+      const log = db.catchingLogs.find(l => l.id === logId);
+      if (!log) return;
+
+      document.getElementById('amendLogId').value = log.id;
+      document.getElementById('amendDate').value = log.date;
+      document.getElementById('amendDO').value = log.doNumber;
+      document.getElementById('amendEmptyWeight').value = log.emptyBakulAvg;
+      document.getElementById('amendGrossWeight').value = log.grossWeight;
+
+      const farmSel = document.getElementById('amendFarm');
+      farmSel.innerHTML = db.farms.map(f => `<option value="${f.id}" ${f.id === log.farmId ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
+      populateAmendHouses(log.houseId);
+
+      const container = document.getElementById('amendBakulRowsContainer');
+      container.innerHTML = '';
+      const rows = (log.bakulRows && log.bakulRows.length)
+        ? log.bakulRows
+        : [{ bakulId: db.bakulTypes[0]?.id, qty: log.totalBakul, isi: 14 }];
+      rows.forEach(r => addAmendBakulRow(r));
+
+      document.getElementById('amendModal').classList.remove('hidden');
+      document.getElementById('amendModal').classList.add('flex');
+    }
+
+    function populateAmendHouses(selectedHId = null) {
+      const fId = document.getElementById('amendFarm').value;
+      const houses = db.houses.filter(h => h.farmId === fId);
+      document.getElementById('amendHouse').innerHTML = houses.map(h =>
+        `<option value="${h.id}" ${h.id === selectedHId ? 'selected' : ''}>${escapeHtml(h.number)}</option>`
+      ).join('');
+    }
+
+    function addAmendBakulRow(preset = null) {
+      const container = document.getElementById('amendBakulRowsContainer');
+      const rowId = 'abrow_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const defaultBakul = preset?.bakulId || (db.bakulTypes[0]?.id || '');
+      const optionsHtml = db.bakulTypes.map(b =>
+        `<option value="${b.id}" ${b.id === defaultBakul ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
+      ).join('');
+
+      const row = document.createElement('div');
+      row.id = rowId;
+      row.className = 'grid grid-cols-12 gap-1.5 items-center bg-white p-1.5 rounded-xl border border-orange-200';
+      row.innerHTML = `
+        <div class="col-span-5">
+          <select class="abakul-select input-m3 !py-1.5 !px-2 !text-xs">${optionsHtml}</select>
+        </div>
+        <div class="col-span-3">
+          <input type="number" class="abakul-qty input-m3 !py-1.5 !px-2 !text-xs text-center" value="${preset?.qty ?? 0}" />
+        </div>
+        <div class="col-span-3">
+          <input type="number" class="abakul-isi input-m3 !py-1.5 !px-2 !text-xs text-center" value="${preset?.isi ?? 14}" />
+        </div>
+        <div class="col-span-1 text-center">
+          <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-rose-500 font-bold text-xs cursor-pointer">✕</button>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function closeAmendModal() {
+      document.getElementById('amendModal').classList.add('hidden');
+      document.getElementById('amendModal').classList.remove('flex');
+    }
+
+    async function saveAmendedLog() {
+      const id = document.getElementById('amendLogId').value;
+      const idx = db.catchingLogs.findIndex(l => l.id === id);
+      if (idx === -1) return;
+
+      const farmId = document.getElementById('amendFarm').value;
+      const houseId = document.getElementById('amendHouse').value;
+      const farm = db.farms.find(f => f.id === farmId);
+      const house = db.houses.find(h => h.id === houseId);
+
+      const rowEls = Array.from(document.querySelectorAll('#amendBakulRowsContainer > div'));
+      const bakulRows = rowEls.map(r => {
+        const bId = r.querySelector('.abakul-select').value;
+        const bObj = db.bakulTypes.find(b => b.id === bId);
+        const qty = Number(r.querySelector('.abakul-qty').value || 0);
+        const isi = Number(r.querySelector('.abakul-isi').value || 0);
+        return { bakulId: bId, bakulName: bObj ? bObj.name : 'Bakul', qty, isi, subtotalBirds: qty * isi };
+      }).filter(r => r.qty > 0);
+
+      const totalBakul = bakulRows.reduce((s, r) => s + r.qty, 0);
+      const totalBirds = bakulRows.reduce((s, r) => s + r.subtotalBirds, 0);
+      const emptyAvg = Number(document.getElementById('amendEmptyWeight').value || 0);
+      const grossWeight = Number(document.getElementById('amendGrossWeight').value || 0);
+      const netWeight = Math.max(0, grossWeight - (emptyAvg * totalBakul));
+
+      db.catchingLogs[idx] = {
+        ...db.catchingLogs[idx],
+        date: document.getElementById('amendDate').value,
+        doNumber: document.getElementById('amendDO').value.trim(),
+        farmId,
+        farmName: farm?.name || '',
+        houseId,
+        houseNumber: house?.number || '',
+        bakulRows,
+        totalBakul,
+        emptyBakulAvg: emptyAvg,
+        grossWeight,
+        netWeight: Number(netWeight.toFixed(2)),
+        totalBirds,
+        avgWeight: totalBirds > 0 ? Number((netWeight / totalBirds).toFixed(4)) : 0
+      };
+
+      closeAmendModal();
+      renderMyLogs();
+      renderDailySummary();
+      renderDailyBalanceSummary();
+      renderExecutiveReport();
+      showToast('Record amended & saved!');
+      await pushToDropbox(true);
+    }
+
+    // ==================== ADMIN MANAGEMENT & REPORT GENERATOR ====================
+    function renderAdminLists() {
+      document.getElementById('adminFarmList').innerHTML = db.farms.map(f => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <span class="font-bold text-slate-800">${escapeHtml(f.name)}</span>
+          <div class="flex gap-2">
+            <button type="button" onclick="editFarm('${f.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
+            <button type="button" onclick="deleteFarm('${f.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('adminHouseList').innerHTML = db.houses.map(h => {
+        const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
+        return `
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <div>
+              <span class="font-bold text-slate-900">${escapeHtml(farmName)} → ${escapeHtml(h.number)}</span>
+              <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()} • Mortality: ${Number(h.mortality || 0).toLocaleString()}</span>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" onclick="editHouse('${h.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
+              <button type="button" onclick="deleteHouse('${h.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Manual Mortality Input List per Individual House
+      const mortContainer = document.getElementById('adminMortalityList');
+      if (mortContainer) {
+        mortContainer.innerHTML = db.houses.length
+          ? db.houses.map(h => {
+              const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
+              return `
+                <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="min-w-0">
+                    <span class="block text-xs font-extrabold text-slate-900 truncate">${escapeHtml(farmName)} — ${escapeHtml(h.number)}</span>
+                    <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()}</span>
+                  </div>
+                  <div class="w-32 shrink-0">
+                    <input type="number" min="0" step="1" data-house-id="${h.id}"
+                      value="${Number(h.mortality || 0)}"
+                      placeholder="Mortality"
+                      class="admin-mort-input input-m3 !py-1.5 !px-2.5 !text-xs text-right font-extrabold text-rose-600" />
+                  </div>
+                </div>
+              `;
+            }).join('')
+          : `<div class="p-3 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">No houses configured yet.</div>`;
+      }
+
+      document.getElementById('adminBakulList').innerHTML = db.bakulTypes.map(b => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <span class="font-bold text-slate-800">${escapeHtml(b.name)} <span class="text-slate-400 font-normal">(Default Isi: ${b.defaultIsi})</span></span>
+          <div class="flex gap-2">
+            <button type="button" onclick="editBakulType('${b.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
+            <button type="button" onclick="deleteBakulType('${b.id}')" class="text-rose-600 font-bold cursor-pointer">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function saveAllManualMortality() {
+      const inputs = Array.from(document.querySelectorAll('.admin-mort-input'));
+      inputs.forEach(inp => {
+        const hId = inp.getAttribute('data-house-id');
+        const house = db.houses.find(h => h.id === hId);
+        if (house) {
+          house.mortality = Math.max(0, Number(inp.value || 0));
+        }
+      });
+      await refreshAfterAdminChange('House mortality updated & synced!');
+    }
+
+    async function addFarm() {
+      const name = document.getElementById('newFarmName').value.trim();
+      if (!name) return;
+      db.farms.push({ id: 'farm_' + Date.now(), name });
+      document.getElementById('newFarmName').value = '';
+      refreshAfterAdminChange('Farm added');
+    }
+
+    function editFarm(id) {
+      const f = db.farms.find(x => x.id === id);
+      if (!f) return;
+      openEditValueModal('Edit Farm Group', [
+        { id: 'ef_name', label: 'Farm Name', value: f.name }
+      ], () => {
+        const val = document.getElementById('ef_name').value.trim();
+        if (!val) return;
+        f.name = val;
+        closeEditValueModal();
+        refreshAfterAdminChange('Farm updated');
+      });
+    }
+
+    async function deleteFarm(id) {
+      if (db.farms.length <= 1) return showToast('Keep at least 1 Farm');
+      db.farms = db.farms.filter(f => f.id !== id);
+      db.houses = db.houses.filter(h => h.farmId !== id);
+      refreshAfterAdminChange('Farm deleted');
+    }
+
+    async function addHouse() {
+      const farmId = document.getElementById('newHouseFarm').value;
+      const number = document.getElementById('newHouseNumber').value.trim();
+      const intake = Number(document.getElementById('newHouseIntake').value || 0);
+      const mortality = Number(document.getElementById('newHouseMortality').value || 0);
+      if (!farmId || !number) return showToast('Select Farm and enter House Number');
+
+      db.houses.push({ id: 'h_' + Date.now(), farmId, number, intake, mortality });
+      document.getElementById('newHouseNumber').value = '';
+      document.getElementById('newHouseIntake').value = '';
+      document.getElementById('newHouseMortality').value = '';
+      refreshAfterAdminChange('House added');
+    }
+
+    function editHouse(id) {
+      const h = db.houses.find(x => x.id === id);
+      if (!h) return;
+      openEditValueModal('Edit House Details', [
+        { id: 'eh_num', label: 'House Number', value: h.number },
+        { id: 'eh_intake', label: 'Birds Intake', type: 'number', value: h.intake },
+        { id: 'eh_mortality', label: 'Total Mortality', type: 'number', value: Number(h.mortality || 0) }
+      ], () => {
+        const num = document.getElementById('eh_num').value.trim();
+        const intake = Number(document.getElementById('eh_intake').value || 0);
+        const mortality = Number(document.getElementById('eh_mortality').value || 0);
+        if (!num) return;
+        h.number = num;
+        h.intake = intake;
+        h.mortality = mortality;
+        closeEditValueModal();
+        refreshAfterAdminChange('House updated');
+      });
+    }
+
+    async function deleteHouse(id) {
+      db.houses = db.houses.filter(h => h.id !== id);
+      refreshAfterAdminChange('House deleted');
+    }
+
+    async function addBakulType() {
+      const name = document.getElementById('newBakulName').value.trim();
+      const defaultIsi = Number(document.getElementById('newBakulDefaultIsi').value || 14);
+      if (!name) return;
+      db.bakulTypes.push({ id: 'bk_' + Date.now(), name, defaultIsi });
+      document.getElementById('newBakulName').value = '';
+      document.getElementById('newBakulDefaultIsi').value = '';
+      refreshAfterAdminChange('Bakul type added');
+    }
+
+    function editBakulType(id) {
+      const b = db.bakulTypes.find(x => x.id === id);
+      if (!b) return;
+      openEditValueModal('Edit Bakul Type', [
+        { id: 'eb_name', label: 'Bakul Name', value: b.name },
+        { id: 'eb_isi', label: 'Default Isi (Birds per Bakul)', type: 'number', value: b.defaultIsi }
+      ], () => {
+        const name = document.getElementById('eb_name').value.trim();
+        const isi = Number(document.getElementById('eb_isi').value || 14);
+        if (!name) return;
+        b.name = name;
+        b.defaultIsi = isi;
+        closeEditValueModal();
+        refreshAfterAdminChange('Bakul updated');
+      });
+    }
+
+    async function deleteBakulType(id) {
+      if (db.bakulTypes.length <= 1) return showToast('Keep at least 1 Bakul type');
+      db.bakulTypes = db.bakulTypes.filter(b => b.id !== id);
+      refreshAfterAdminChange('Bakul deleted');
+    }
+
+    async function refreshAfterAdminChange(toastMsg) {
+      renderCatchingSelectors();
+      populateAllDropdowns();
+      renderAdminLists();
+      renderDailyBalanceSummary();
+      renderExecutiveReport();
+      showToast(toastMsg);
+      await pushToDropbox(true);
+    }
+
+    function generateAutomatedReport() {
+      const farmFilter = document.getElementById('adminReportFarm').value;
+      const dateFilter = document.getElementById('adminReportDate').value;
+      const farms = farmFilter === 'ALL' ? db.farms : db.farms.filter(f => f.id === farmFilter);
+
+      const lines = [
+        `====================================`,
+        `MIV AUTOMATED FARM CATCHING REPORT`,
+        `Report Date: ${formatDisplayDate(dateFilter)}`,
+        `Generated: ${new Date().toLocaleString()}`,
+        `====================================`,
+        ``
+      ];
+
+      let grandNet = 0;
+      let grandBirds = 0;
+
+      farms.forEach(farm => {
+        lines.push(`GROUP (FARM): ${farm.name.toUpperCase()}`);
+        const houses = db.houses.filter(h => h.farmId === farm.id);
+        houses.forEach(house => {
+          const logs = db.catchingLogs.filter(l =>
+            l.farmId === farm.id &&
+            l.houseId === house.id &&
+            (!dateFilter || l.date === dateFilter)
+          );
+          const allHouseLogs = db.catchingLogs.filter(l => l.farmId === farm.id && l.houseId === house.id);
+          const dayNet = logs.reduce((s, l) => s + Number(l.netWeight || 0), 0);
+          const dayBirds = logs.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
+          const cumNet = allHouseLogs.reduce((s, l) => s + Number(l.netWeight || 0), 0);
+          const avgWt = dayBirds > 0 ? (dayNet / dayBirds) : 0;
+
+          const intake = Number(house.intake || 0);
+          const mort = Number(house.mortality || 0);
+          const estBalance = intake - mort;
+
+          grandNet += dayNet;
+          grandBirds += dayBirds;
+
+          lines.push(`  • ${house.number}`);
+          lines.push(`    Daily Catch: ${dayNet.toFixed(2)} kg | ${dayBirds.toLocaleString()} birds | Avg: ${avgWt.toFixed(3)} kg`);
+          lines.push(`    Intake: ${intake.toLocaleString()} | Mortality: ${mort.toLocaleString()} | Est. Balance: ${estBalance.toLocaleString()}`);
+          lines.push(`    Cumulative House Catch Net Wt: ${cumNet.toFixed(2)} kg`);
+        });
+        lines.push(``);
+      });
+
+      const grandAvg = grandBirds > 0 ? (grandNet / grandBirds) : 0;
+      lines.push(`------------------------------------`);
+      lines.push(`TOTAL DAILY NET WEIGHT: ${grandNet.toFixed(2)} kg`);
+      lines.push(`TOTAL DAILY BIRDS:      ${grandBirds.toLocaleString()}`);
+      lines.push(`OVERALL AVG WEIGHT:     ${grandAvg.toFixed(3)} kg`);
+      lines.push(`------------------------------------`);
+
+      const reportText = lines.join('\n');
+      const box = document.getElementById('generatedReportBox');
+      box.textContent = reportText;
+      box.classList.remove('hidden');
+      document.getElementById('shareAdminReportBtn').classList.remove('hidden');
+      showToast('Automated Farm Report Generated');
+    }
+
+    function shareGeneratedReportWhatsApp() {
+      const text = document.getElementById('generatedReportBox').textContent;
+      if (!text) return;
+      openWhatsApp(text);
+    }
+
+    // ==================== UTILITIES ====================
+    function openWhatsApp(text) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    }
+
+    function copyToClipboard(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } catch (e) {
+        console.warn('Copy fallback failed', e);
+      }
+      document.body.removeChild(ta);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastText').textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => toast.classList.add('hidden'), 2600);
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
