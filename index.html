@@ -450,32 +450,95 @@
         <div class="flex items-center justify-between gap-2 mb-3">
           <div>
             <h2 class="text-base font-extrabold text-slate-900">Executive Farm Report</h2>
-            <p class="text-xs text-slate-500">Live Intake, Catching Net Wt &amp; Mortality Balance</p>
+            <p class="text-xs text-slate-500">Filter by Farm, House &amp; Date Range • Sortable &amp; Printable</p>
           </div>
-          <span class="material-symbols-rounded text-[#EA580C] text-[26px]">monitoring</span>
+          <button type="button" onclick="printExecutiveReport()"
+            class="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer no-print">
+            <span class="material-symbols-rounded text-[16px]">print</span>
+            Print Report
+          </button>
         </div>
 
-        <!-- Cycle Filter & Mortality Source Status -->
-        <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 mb-3 text-xs">
-          <div class="flex items-center gap-2">
-            <label for="execCycleSelect" class="font-bold text-slate-600">Cycle:</label>
-            <select id="execCycleSelect" onchange="renderExecutiveReport()" class="input-m3 !py-1 !px-2.5 !text-xs !w-auto">
-              <option value="ALL">All Active Cycles</option>
-            </select>
+        <!-- 1. Select Farm or All, 2. Select House or All, 3. Date To Date -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2.5 no-print">
+          <div>
+            <label for="execFarmSelect" class="block text-[11px] font-bold text-slate-600 mb-1">1. Select Farm or All</label>
+            <select id="execFarmSelect" onchange="onExecFarmChange()" class="input-m3 !py-2 !text-xs"></select>
           </div>
-          <span class="text-[11px] font-semibold text-slate-500">
-            Source: Admin Manual House Mortality
-          </span>
+          <div>
+            <label for="execHouseSelect" class="block text-[11px] font-bold text-slate-600 mb-1">2. Select House or All</label>
+            <select id="execHouseSelect" onchange="renderExecutiveReport()" class="input-m3 !py-2 !text-xs"></select>
+          </div>
         </div>
 
-        <!-- Executive Cards by Group & House -->
-        <div id="executiveReportContainer" class="space-y-3"></div>
+        <div class="grid grid-cols-2 gap-2.5 mb-3 no-print">
+          <div>
+            <label for="execDateFrom" class="block text-[11px] font-bold text-slate-600 mb-1">3. Date From</label>
+            <input type="date" id="execDateFrom" onchange="renderExecutiveReport()" class="input-m3 !py-2 !text-xs" />
+          </div>
+          <div>
+            <label for="execDateTo" class="block text-[11px] font-bold text-slate-600 mb-1">Date To</label>
+            <input type="date" id="execDateTo" onchange="renderExecutiveReport()" class="input-m3 !py-2 !text-xs" />
+          </div>
+        </div>
 
-        <div class="mt-4 pt-3 border-t border-slate-100 flex gap-2">
+        <!-- Sort Controls Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FFF7ED] border border-[#FED7AA] mb-3 no-print">
+          <span class="text-[11px] font-extrabold text-[#EA580C]">Sort By:</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" onclick="toggleExecSort('date')" id="sortBtn-date"
+              class="exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#EA580C] text-white cursor-pointer">
+              Date ↓
+            </button>
+            <button type="button" onclick="toggleExecSort('doNumber')" id="sortBtn-doNumber"
+              class="exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 cursor-pointer">
+              DO Number
+            </button>
+            <button type="button" onclick="toggleExecSort('netWeight')" id="sortBtn-netWeight"
+              class="exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 cursor-pointer">
+              Net Weight
+            </button>
+            <button type="button" onclick="toggleExecSort('totalBirds')" id="sortBtn-totalBirds"
+              class="exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 cursor-pointer">
+              Total Birds
+            </button>
+            <button type="button" onclick="toggleExecSort('avgWeight')" id="sortBtn-avgWeight"
+              class="exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 cursor-pointer">
+              Avg Weight
+            </button>
+          </div>
+        </div>
+
+        <!-- Print Header Summary (Visible on screen & print) -->
+        <div id="execPrintHeader" class="mb-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs flex flex-wrap justify-between gap-2"></div>
+
+        <!-- Sortable Executive Catching Table -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-200">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-900 text-white text-[10px] uppercase tracking-wider">
+                <th onclick="toggleExecSort('date')" class="py-2.5 px-2.5 cursor-pointer select-none">Date</th>
+                <th onclick="toggleExecSort('doNumber')" class="py-2.5 px-2.5 cursor-pointer select-none">DO No / House</th>
+                <th onclick="toggleExecSort('netWeight')" class="py-2.5 px-2.5 text-right cursor-pointer select-none">Net Wt (kg)</th>
+                <th onclick="toggleExecSort('totalBirds')" class="py-2.5 px-2.5 text-right cursor-pointer select-none">Total Birds</th>
+                <th onclick="toggleExecSort('avgWeight')" class="py-2.5 px-2.5 text-right cursor-pointer select-none">Avg Wt (kg)</th>
+              </tr>
+            </thead>
+            <tbody id="executiveReportTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+            <tfoot id="executiveReportTableFoot" class="bg-[#FFF7ED] border-t-2 border-[#EA580C] font-extrabold text-slate-900"></tfoot>
+          </table>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 no-print">
+          <button type="button" onclick="printExecutiveReport()"
+            class="py-3 rounded-xl border border-slate-300 bg-white text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+            <span class="material-symbols-rounded text-[18px]">print</span>
+            Print Report
+          </button>
           <button type="button" onclick="shareExecutiveWhatsApp()"
-            class="btn-whatsapp flex-1 py-3 text-xs flex items-center justify-center gap-1.5">
+            class="btn-whatsapp py-3 text-xs flex items-center justify-center gap-1.5">
             <span class="material-symbols-rounded text-[18px]">share</span>
-            Share Executive Report
+            Share WhatsApp
           </button>
         </div>
       </div>
@@ -784,6 +847,8 @@
     let pendingPasscodeCallback = null;
     let pendingEditSaveCallback = null;
     let selectedBalanceTargets = new Set();
+    let execSortField = 'date';
+    let execSortDir = 'desc';
     let isSyncing = false;
     let pollTimer = null;
 
@@ -820,6 +885,8 @@
       document.getElementById('catchDate').value = today;
       document.getElementById('sumDateInput').value = today;
       document.getElementById('balDateInput').value = today;
+      document.getElementById('execDateFrom').value = today;
+      document.getElementById('execDateTo').value = today;
       document.getElementById('adminReportDate').value = today;
 
       if (!selectedFarmId && db.farms.length) selectedFarmId = db.farms[0].id;
@@ -1467,13 +1534,15 @@
       adminRepFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
       newHouseFarm.innerHTML = farmOpts;
 
-      const cycles = new Set(['C-2026-04']);
-      db.houses.forEach(h => { if (h.cycle) cycles.add(h.cycle); });
-      const execCycle = document.getElementById('execCycleSelect');
-      const prevVal = execCycle.value;
-      execCycle.innerHTML = `<option value="ALL">All Cycles</option>` +
-        Array.from(cycles).map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-      if (Array.from(cycles).includes(prevVal)) execCycle.value = prevVal;
+      const execFarm = document.getElementById('execFarmSelect');
+      if (execFarm) {
+        const prevFarm = execFarm.value;
+        execFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
+        if (prevFarm && (prevFarm === 'ALL' || db.farms.some(f => f.id === prevFarm))) {
+          execFarm.value = prevFarm;
+        }
+        onExecFarmChange();
+      }
     }
 
     function onSummaryFarmChange() {
@@ -1770,67 +1839,231 @@
     }
 
     // ==================== EXECUTIVE REPORT ====================
-    function renderExecutiveReport() {
-      const cycleFilter = document.getElementById('execCycleSelect').value;
-      const container = document.getElementById('executiveReportContainer');
+    function onExecFarmChange() {
+      const farmId = document.getElementById('execFarmSelect').value;
+      const execHouse = document.getElementById('execHouseSelect');
+      const prevHouse = execHouse.value;
+      const houses = farmId === 'ALL'
+        ? db.houses
+        : db.houses.filter(h => h.farmId === farmId);
 
-      container.innerHTML = db.farms.map(farm => {
-        const houses = db.houses.filter(h => h.farmId === farm.id && (cycleFilter === 'ALL' || h.cycle === cycleFilter));
-        if (!houses.length) return '';
-
-        const houseCards = houses.map(house => {
-          const birdsIntake = Number(house.intake || 0);
-          const totalMortality = Number(house.mortality || 0);
-
-          const houseLogs = db.catchingLogs.filter(l => l.farmId === farm.id && l.houseId === house.id);
-          const totalCatchingNetWt = houseLogs.reduce((s, l) => s + Number(l.netWeight || 0), 0);
-          const totalCaughtBirds = houseLogs.reduce((s, l) => s + Number(l.totalBirds || 0), 0);
-
-          const estimatedBalance = birdsIntake - totalMortality;
-          const remainingLive = estimatedBalance - totalCaughtBirds;
-
-          return `
-            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-extrabold text-slate-900">${escapeHtml(house.number)}</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C]">${escapeHtml(house.cycle || 'Active')}</span>
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div class="bg-white p-2 rounded-xl border border-slate-100">
-                  <span class="block text-[10px] text-slate-400 font-bold">Birds Intake</span>
-                  <strong class="text-slate-900">${birdsIntake.toLocaleString()}</strong>
-                </div>
-                <div class="bg-white p-2 rounded-xl border border-slate-100">
-                  <span class="block text-[10px] text-slate-400 font-bold">Total Catching Net Wt</span>
-                  <strong class="text-[#EA580C]">${totalCatchingNetWt.toFixed(2)} kg</strong>
-                </div>
-                <div class="bg-white p-2 rounded-xl border border-slate-100">
-                  <span class="block text-[10px] text-slate-400 font-bold">Total Mortality</span>
-                  <strong class="text-rose-600">${totalMortality.toLocaleString()}</strong>
-                </div>
-                <div class="bg-white p-2 rounded-xl border border-slate-100">
-                  <span class="block text-[10px] text-slate-400 font-bold">Estimated Balance</span>
-                  <strong class="text-emerald-700">${estimatedBalance.toLocaleString()}</strong>
-                </div>
-              </div>
-              <div class="flex justify-between text-[11px] text-slate-500 pt-0.5 px-1">
-                <span>Caught Birds: <strong>${totalCaughtBirds.toLocaleString()}</strong></span>
-                <span>Uncaught Est: <strong>${remainingLive.toLocaleString()}</strong></span>
-              </div>
-            </div>
-          `;
+      execHouse.innerHTML = `<option value="ALL">All Houses</option>` +
+        houses.map(h => {
+          const farmPrefix = farmId === 'ALL'
+            ? `${db.farms.find(f => f.id === h.farmId)?.name || ''} - `
+            : '';
+          return `<option value="${h.id}">${escapeHtml(farmPrefix + h.number)}</option>`;
         }).join('');
 
+      if (prevHouse && (prevHouse === 'ALL' || houses.some(h => h.id === prevHouse))) {
+        execHouse.value = prevHouse;
+      }
+      renderExecutiveReport();
+    }
+
+    function toggleExecSort(field) {
+      if (execSortField === field) {
+        execSortDir = execSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        execSortField = field;
+        execSortDir = field === 'doNumber' ? 'asc' : 'desc';
+      }
+      updateExecSortButtons();
+      renderExecutiveReport();
+    }
+
+    function updateExecSortButtons() {
+      const labels = {
+        date: 'Date',
+        doNumber: 'DO Number',
+        netWeight: 'Net Weight',
+        totalBirds: 'Total Birds',
+        avgWeight: 'Avg Weight'
+      };
+      Object.keys(labels).forEach(key => {
+        const btn = document.getElementById(`sortBtn-${key}`);
+        if (!btn) return;
+        if (key === execSortField) {
+          btn.className = 'exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#EA580C] text-white cursor-pointer';
+          btn.textContent = `${labels[key]} ${execSortDir === 'asc' ? '↑' : '↓'}`;
+        } else {
+          btn.className = 'exec-sort-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 cursor-pointer';
+          btn.textContent = labels[key];
+        }
+      });
+    }
+
+    function getFilteredSortedExecutiveRows() {
+      const farmId = document.getElementById('execFarmSelect')?.value || 'ALL';
+      const houseId = document.getElementById('execHouseSelect')?.value || 'ALL';
+      const dateFrom = document.getElementById('execDateFrom')?.value || '';
+      const dateTo = document.getElementById('execDateTo')?.value || '';
+
+      const rows = db.catchingLogs
+        .filter(l => {
+          if (farmId !== 'ALL' && l.farmId !== farmId) return false;
+          if (houseId !== 'ALL' && l.houseId !== houseId) return false;
+          if (dateFrom && l.date < dateFrom) return false;
+          if (dateTo && l.date > dateTo) return false;
+          return true;
+        })
+        .map(l => {
+          const netWeight = Number(l.netWeight || 0);
+          const totalBirds = Number(l.totalBirds || 0);
+          const avgWeight = totalBirds > 0 ? (netWeight / totalBirds) : 0;
+          return {
+            ...l,
+            netWeight,
+            totalBirds,
+            avgWeight
+          };
+        });
+
+      const dir = execSortDir === 'asc' ? 1 : -1;
+      rows.sort((a, b) => {
+        if (execSortField === 'date') {
+          return a.date.localeCompare(b.date) * dir;
+        }
+        if (execSortField === 'doNumber') {
+          return String(a.doNumber || '').localeCompare(String(b.doNumber || ''), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+        }
+        if (execSortField === 'netWeight') {
+          return (a.netWeight - b.netWeight) * dir;
+        }
+        if (execSortField === 'totalBirds') {
+          return (a.totalBirds - b.totalBirds) * dir;
+        }
+        if (execSortField === 'avgWeight') {
+          return (a.avgWeight - b.avgWeight) * dir;
+        }
+        return 0;
+      });
+
+      return rows;
+    }
+
+    function renderExecutiveReport() {
+      const farmId = document.getElementById('execFarmSelect')?.value || 'ALL';
+      const houseId = document.getElementById('execHouseSelect')?.value || 'ALL';
+      const dateFrom = document.getElementById('execDateFrom')?.value || '';
+      const dateTo = document.getElementById('execDateTo')?.value || '';
+
+      const farmLabel = farmId === 'ALL'
+        ? 'All Farms'
+        : (db.farms.find(f => f.id === farmId)?.name || 'Selected Farm');
+      const houseLabel = houseId === 'ALL'
+        ? 'All Houses'
+        : (db.houses.find(h => h.id === houseId)?.number || 'Selected House');
+      const rangeLabel = (dateFrom || dateTo)
+        ? `${dateFrom ? formatDisplayDate(dateFrom) : 'Start'} to ${dateTo ? formatDisplayDate(dateTo) : 'Today'}`
+        : 'All Dates';
+
+      const headerEl = document.getElementById('execPrintHeader');
+      if (headerEl) {
+        headerEl.innerHTML = `
+          <span><strong>Farm:</strong> ${escapeHtml(farmLabel)} | <strong>House:</strong> ${escapeHtml(houseLabel)}</span>
+          <span><strong>Period:</strong> ${escapeHtml(rangeLabel)}</span>
+        `;
+      }
+
+      const rows = getFilteredSortedExecutiveRows();
+      const tbody = document.getElementById('executiveReportTableBody');
+      const tfoot = document.getElementById('executiveReportTableFoot');
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="p-6 text-center text-xs text-slate-400">
+              No catching records found for the selected Farm, House &amp; Date range.
+            </td>
+          </tr>
+        `;
+        tfoot.innerHTML = `
+          <tr>
+            <td colspan="2" class="py-2.5 px-2.5 text-xs uppercase">TOTAL</td>
+            <td class="py-2.5 px-2.5 text-right text-[#EA580C]">0.00 kg</td>
+            <td class="py-2.5 px-2.5 text-right">0</td>
+            <td class="py-2.5 px-2.5 text-right text-emerald-700">0.000 kg</td>
+          </tr>
+        `;
+        return;
+      }
+
+      let totalNet = 0;
+      let totalBirds = 0;
+
+      tbody.innerHTML = rows.map(r => {
+        totalNet += r.netWeight;
+        totalBirds += r.totalBirds;
         return `
-          <div class="space-y-2">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-[#EA580C]"></span>
-              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-700">${escapeHtml(farm.name)}</h3>
-            </div>
-            ${houseCards}
-          </div>
+          <tr class="hover:bg-orange-50/40">
+            <td class="py-2.5 px-2.5 whitespace-nowrap font-semibold text-slate-700">${formatDisplayDate(r.date)}</td>
+            <td class="py-2.5 px-2.5">
+              <span class="block font-extrabold text-slate-900">${escapeHtml(r.doNumber)}</span>
+              <span class="block text-[10px] text-slate-500">${escapeHtml(r.farmName)} • ${escapeHtml(r.houseNumber)}</span>
+            </td>
+            <td class="py-2.5 px-2.5 text-right font-bold text-[#EA580C] whitespace-nowrap">${r.netWeight.toFixed(2)}</td>
+            <td class="py-2.5 px-2.5 text-right font-bold text-slate-900 whitespace-nowrap">${r.totalBirds.toLocaleString()}</td>
+            <td class="py-2.5 px-2.5 text-right font-semibold text-emerald-700 whitespace-nowrap">${r.avgWeight.toFixed(3)}</td>
+          </tr>
         `;
       }).join('');
+
+      const overallAvg = totalBirds > 0 ? (totalNet / totalBirds) : 0;
+
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="2" class="py-3 px-2.5 text-xs uppercase tracking-wide">TOTAL (${rows.length} DO)</td>
+          <td class="py-3 px-2.5 text-right text-[#EA580C] whitespace-nowrap">${totalNet.toFixed(2)} kg</td>
+          <td class="py-3 px-2.5 text-right whitespace-nowrap">${totalBirds.toLocaleString()}</td>
+          <td class="py-3 px-2.5 text-right text-emerald-700 whitespace-nowrap">${overallAvg.toFixed(3)} kg</td>
+        </tr>
+      `;
+    }
+
+    function printExecutiveReport() {
+      renderExecutiveReport();
+      window.print();
+    }
+
+    function shareExecutiveWhatsApp() {
+      const farmId = document.getElementById('execFarmSelect')?.value || 'ALL';
+      const houseId = document.getElementById('execHouseSelect')?.value || 'ALL';
+      const dateFrom = document.getElementById('execDateFrom')?.value || '';
+      const dateTo = document.getElementById('execDateTo')?.value || '';
+
+      const farmLabel = farmId === 'ALL'
+        ? 'All Farms'
+        : (db.farms.find(f => f.id === farmId)?.name || 'Selected Farm');
+      const houseLabel = houseId === 'ALL'
+        ? 'All Houses'
+        : (db.houses.find(h => h.id === houseId)?.number || 'Selected House');
+      const rangeLabel = (dateFrom || dateTo)
+        ? `${dateFrom ? formatDisplayDate(dateFrom) : 'Start'} to ${dateTo ? formatDisplayDate(dateTo) : 'Today'}`
+        : 'All Dates';
+
+      const rows = getFilteredSortedExecutiveRows();
+      const totalNet = rows.reduce((s, r) => s + r.netWeight, 0);
+      const totalBirds = rows.reduce((s, r) => s + r.totalBirds, 0);
+      const overallAvg = totalBirds > 0 ? (totalNet / totalBirds) : 0;
+
+      const rowLines = rows.length
+        ? rows.map(r => `${formatDisplayDate(r.date)} | ${r.doNumber} (${r.houseNumber}) | ${r.netWeight.toFixed(2)} kg | ${r.totalBirds.toLocaleString()} birds | Avg ${r.avgWeight.toFixed(3)} kg`)
+        : ['No catching records found'];
+
+      const msg = [
+        '*MIV EXECUTIVE FARM REPORT*',
+        `Farm: ${farmLabel} | House: ${houseLabel}`,
+        `Date: ${rangeLabel}`,
+        '',
+        ...rowLines,
+        '',
+        `*TOTAL NET WEIGHT:* ${totalNet.toFixed(2)} kg`,
+        `*TOTAL BIRDS:* ${totalBirds.toLocaleString()}`,
+        `*AVERAGE WEIGHT:* ${overallAvg.toFixed(3)} kg`
+      ].join('\n');
+
+      openWhatsApp(msg);
     }
 
     function shareExecutiveWhatsApp() {
