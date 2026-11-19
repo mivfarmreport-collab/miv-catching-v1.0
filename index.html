@@ -750,6 +750,53 @@
         </div>
       </div>
 
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="saveDropboxConfigAndSync()" class="btn-primary py-3 text-xs">Save &amp; Sync Now</button>
+        <button type="button" onclick="pullFromDropbox(true)" class="py-3 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 cursor-pointer">Pull Cloud Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PASSWORD PROMPT MODAL ==================== -->
+  <div id="passcodeModal" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-3 text-center">
+      <div class="w-11 h-11 rounded-2xl bg-[#FFF7ED] text-[#EA580C] flex items-center justify-center mx-auto">
+        <span class="material-symbols-rounded text-[24px]">lock</span>
+      </div>
+      <h3 id="passcodeTitle" class="text-base font-extrabold text-slate-900">Enter Passcode</h3>
+      <p id="passcodeSubtitle" class="text-xs text-slate-500">Default passcode is 1234</p>
+      <input type="password" id="passcodeInput" inputmode="numeric" maxlength="12" placeholder="••••"
+        onkeydown="if(event.key==='Enter') confirmPasscode()"
+        class="input-m3 text-center text-lg tracking-widest" />
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="closePasscodeModal()" class="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
+        <button type="button" onclick="confirmPasscode()" class="btn-primary py-2.5 text-xs">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== AMEND LOG MODAL ==================== -->
+  <div id="amendModal" class="fixed inset-0 z-50 bg-black/50 hidden items-end sm:items-center justify-center p-3">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <h3 class="text-base font-extrabold text-slate-900">Amend Catching Record</h3>
+        <button type="button" onclick="closeAmendModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center cursor-pointer">
+          <span class="material-symbols-rounded text-[18px]">close</span>
+        </button>
+      </div>
+
+      <input type="hidden" id="amendLogId" />
+      <div class="grid grid-cols-2 gap-2.5">
+        <div>
+          <label for="amendDate" class="block text-[11px] font-bold text-slate-600 mb-1">Date</label>
+          <input type="date" id="amendDate" class="input-m3 !py-2 !text-xs" />
+        </div>
+        <div>
+          <label for="amendDO" class="block text-[11px] font-bold text-slate-600 mb-1">DO Number</label>
+          <input type="text" id="amendDO" class="input-m3 !py-2 !text-xs" />
+        </div>
+      </div>
+
       <div class="grid grid-cols-2 gap-2.5">
         <div>
           <label for="amendFarm" class="block text-[11px] font-bold text-slate-600 mb-1">Farm Group</label>
@@ -1036,22 +1083,6 @@
       } catch (e) {
         showToast('Invalid sync link format');
       }
-    }
-
-    function generateDeviceSyncLink() {
-      const payload = {
-        refreshToken: document.getElementById('dbxRefreshToken').value.trim(),
-        appKey: document.getElementById('dbxAppKey').value.trim(),
-        appSecret: document.getElementById('dbxAppSecret').value.trim(),
-        accessToken: document.getElementById('dbxAccessToken').value.trim()
-      };
-      const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
-      const url = `${window.location.origin}${window.location.pathname}?sync=${encoded}`;
-      const out = document.getElementById('deviceSyncLinkOutput');
-      out.value = url;
-      out.select();
-      copyToClipboard(url);
-      showToast('1-Tap Sync Link copied to clipboard!');
     }
 
     // ==================== DROPBOX CONTENT API v2 INTEGRATION ====================
