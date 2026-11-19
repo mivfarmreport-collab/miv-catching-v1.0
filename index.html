@@ -852,26 +852,14 @@
     let isSyncing = false;
     let pollTimer = null;
 
-    // Default Initial Database
+    // Default Clean Blank Database (No Pre-Populated Data)
     const defaultDatabase = {
       updatedAt: new Date().toISOString(),
       adminPasscode: DEFAULT_PASSCODE,
       logPasscode: DEFAULT_PASSCODE,
-      farms: [
-        { id: 'farm_1', name: 'MIV Farm 1' },
-        { id: 'farm_2', name: 'MIV Farm 2' }
-      ],
-      houses: [
-        { id: 'h_101', farmId: 'farm_1', number: 'House 1', intake: 48000, mortality: 1420, cycle: 'C-2026-04' },
-        { id: 'h_102', farmId: 'farm_1', number: 'House 2', intake: 49500, mortality: 1615, cycle: 'C-2026-04' },
-        { id: 'h_201', farmId: 'farm_2', number: 'House A', intake: 50000, mortality: 1290, cycle: 'C-2026-04' },
-        { id: 'h_202', farmId: 'farm_2', number: 'House B', intake: 48500, mortality: 1510, cycle: 'C-2026-04' }
-      ],
-      bakulTypes: [
-        { id: 'bk_1', name: 'Bakul Standard', defaultIsi: 14 },
-        { id: 'bk_2', name: 'Bakul Besar', defaultIsi: 16 },
-        { id: 'bk_3', name: 'Bakul Kecil', defaultIsi: 12 }
-      ],
+      farms: [],
+      houses: [],
+      bakulTypes: [],
       catchingLogs: []
     };
 
@@ -1279,12 +1267,14 @@
     // ==================== CATCHING ENTRY FORM & BAKUL x ISI ROWS ====================
     function renderCatchingSelectors() {
       const farmContainer = document.getElementById('farmPillContainer');
-      farmContainer.innerHTML = db.farms.map(f => `
-        <button type="button" onclick="selectFarm('${f.id}')"
-          class="selector-pill ${f.id === selectedFarmId ? 'active' : ''}">
-          ${escapeHtml(f.name)}
-        </button>
-      `).join('');
+      farmContainer.innerHTML = db.farms.length
+        ? db.farms.map(f => `
+            <button type="button" onclick="selectFarm('${f.id}')"
+              class="selector-pill ${f.id === selectedFarmId ? 'active' : ''}">
+              ${escapeHtml(f.name)}
+            </button>
+          `).join('')
+        : `<span class="text-xs text-slate-400">No farms added yet. Add Farms &amp; Houses in Admin.</span>`;
 
       const houses = db.houses.filter(h => h.farmId === selectedFarmId);
       if (!houses.some(h => h.id === selectedHouseId)) {
@@ -1299,7 +1289,7 @@
               ${escapeHtml(h.number)}
             </button>
           `).join('')
-        : `<span class="text-xs text-slate-400">No houses assigned to this farm yet.</span>`;
+        : `<span class="text-xs text-slate-400">No houses available.</span>`;
 
       const activeHouse = houses.find(h => h.id === selectedHouseId);
       document.getElementById('selectedHouseIntakeBadge').textContent = activeHouse
@@ -1323,12 +1313,14 @@
       const container = document.getElementById('bakulRowsContainer');
       const rowId = 'brow_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
       const defaultBakul = preset?.bakulId || (db.bakulTypes[0]?.id || '');
-      const defaultIsi = preset?.isi ?? (db.bakulTypes.find(b => b.id === defaultBakul)?.defaultIsi || 14);
+      const defaultIsi = preset?.isi ?? (db.bakulTypes.find(b => b.id === defaultBakul)?.defaultIsi || '');
       const defaultQty = preset?.qty ?? '';
 
-      const optionsHtml = db.bakulTypes.map(b =>
-        `<option value="${b.id}" ${b.id === defaultBakul ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
-      ).join('');
+      const optionsHtml = db.bakulTypes.length
+        ? db.bakulTypes.map(b =>
+            `<option value="${b.id}" ${b.id === defaultBakul ? 'selected' : ''}>${escapeHtml(b.name)}</option>`
+          ).join('')
+        : `<option value="">-- Add Bakul in Admin --</option>`;
 
       const rowEl = document.createElement('div');
       rowEl.id = rowId;
@@ -1515,12 +1507,16 @@
     // ==================== CATCHING DAILY SUMMARY ====================
     function populateAllDropdowns() {
       const sumFarm = document.getElementById('sumFarmSelect');
-      sumFarm.innerHTML = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+      sumFarm.innerHTML = db.farms.length
+        ? db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')
+        : `<option value="">-- No Farms --</option>`;
       onSummaryFarmChange();
 
       const balFarm = document.getElementById('balFarmSelect');
       if (balFarm) {
-        balFarm.innerHTML = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+        balFarm.innerHTML = db.farms.length
+          ? db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')
+          : `<option value="">-- No Farms --</option>`;
         onBalanceFarmChange();
       }
 
@@ -1532,7 +1528,7 @@
       const newHouseFarm = document.getElementById('newHouseFarm');
       const farmOpts = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
       adminRepFarm.innerHTML = `<option value="ALL">All Farms</option>` + farmOpts;
-      newHouseFarm.innerHTML = farmOpts;
+      newHouseFarm.innerHTML = farmOpts || `<option value="">-- Add Farm First --</option>`;
 
       const execFarm = document.getElementById('execFarmSelect');
       if (execFarm) {
@@ -2064,25 +2060,6 @@
       ].join('\n');
 
       openWhatsApp(msg);
-    }
-
-    function shareExecutiveWhatsApp() {
-      const lines = ['*MIV EXECUTIVE FARM REPORT*', `Date: ${formatDisplayDate(getLocalTodayDate())}`, ''];
-      db.farms.forEach(farm => {
-        lines.push(`*${farm.name}*`);
-        db.houses.filter(h => h.farmId === farm.id).forEach(house => {
-          const intake = Number(house.intake || 0);
-          const mort = Number(house.mortality || 0);
-          const estBal = intake - mort;
-          const netWt = db.catchingLogs
-            .filter(l => l.farmId === farm.id && l.houseId === house.id)
-            .reduce((s, l) => s + Number(l.netWeight || 0), 0);
-
-          lines.push(`- ${house.number}: Intake ${intake.toLocaleString()} | Net Wt ${netWt.toFixed(2)} kg | Mort ${mort.toLocaleString()} | Est Bal ${estBal.toLocaleString()}`);
-        });
-        lines.push('');
-      });
-      openWhatsApp(lines.join('\n'));
     }
 
     // ==================== MY LOGS (VIEW, AMEND, DELETE WITH PASSCODE) ====================
