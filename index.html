@@ -725,7 +725,7 @@
       </div>
 
       <!-- 1-Tap New Device Sync Link -->
-      <div class="p-3.5 rounded-2xl bg-slate-900 text-white space-y-2">
+      <div class="p-3.5 rounded-2xl bg-slate-900 text-white space-y-2.5">
         <div class="flex items-center justify-between">
           <span class="text-xs font-extrabold text-orange-400">1-Tap New Device Sync Link</span>
           <button type="button" onclick="generateDeviceSyncLink()" class="text-[11px] font-bold underline text-orange-300 cursor-pointer">Generate &amp; Copy</button>
@@ -733,51 +733,20 @@
         <p class="text-[10px] text-slate-400">Encodes Refresh Token, App Key, App Secret &amp; Access Token for instant device setup.</p>
         <input type="text" id="deviceSyncLinkOutput" readonly placeholder="Click Generate & Copy..."
           class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[11px] text-slate-200" />
-      </div>
 
-      <div class="grid grid-cols-2 gap-2 pt-1">
-        <button type="button" onclick="saveDropboxConfigAndSync()" class="btn-primary py-3 text-xs">Save &amp; Sync Now</button>
-        <button type="button" onclick="pullFromDropbox(true)" class="py-3 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 cursor-pointer">Pull Cloud Data</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== PASSWORD PROMPT MODAL ==================== -->
-  <div id="passcodeModal" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4">
-    <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-3 text-center">
-      <div class="w-11 h-11 rounded-2xl bg-[#FFF7ED] text-[#EA580C] flex items-center justify-center mx-auto">
-        <span class="material-symbols-rounded text-[24px]">lock</span>
-      </div>
-      <h3 id="passcodeTitle" class="text-base font-extrabold text-slate-900">Enter Passcode</h3>
-      <p id="passcodeSubtitle" class="text-xs text-slate-500">Default passcode is 1234</p>
-      <input type="password" id="passcodeInput" inputmode="numeric" maxlength="12" placeholder="••••"
-        class="input-m3 text-center text-lg tracking-widest" />
-      <div class="grid grid-cols-2 gap-2 pt-1">
-        <button type="button" onclick="closePasscodeModal()" class="py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
-        <button type="button" onclick="confirmPasscode()" class="btn-primary py-2.5 text-xs">Confirm</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== AMEND LOG MODAL ==================== -->
-  <div id="amendModal" class="fixed inset-0 z-50 bg-black/50 hidden items-end sm:items-center justify-center p-3">
-    <div class="bg-white w-full max-w-lg rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-        <h3 class="text-base font-extrabold text-slate-900">Amend Catching Record</h3>
-        <button type="button" onclick="closeAmendModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center cursor-pointer">
-          <span class="material-symbols-rounded text-[18px]">close</span>
-        </button>
-      </div>
-
-      <input type="hidden" id="amendLogId" />
-      <div class="grid grid-cols-2 gap-2.5">
-        <div>
-          <label for="amendDate" class="block text-[11px] font-bold text-slate-600 mb-1">Date</label>
-          <input type="date" id="amendDate" class="input-m3 !py-2 !text-xs" />
-        </div>
-        <div>
-          <label for="amendDO" class="block text-[11px] font-bold text-slate-600 mb-1">DO Number</label>
-          <input type="text" id="amendDO" class="input-m3 !py-2 !text-xs" />
+        <!-- Fallback Import Box for Installed Android Home Screen Web Apps -->
+        <div class="pt-2 border-t border-slate-800 space-y-1.5">
+          <label for="pasteSyncLinkInput" class="block text-[10px] font-bold text-slate-300">
+            Installed App / Paste Sync Link Directly:
+          </label>
+          <div class="flex gap-1.5">
+            <input type="text" id="pasteSyncLinkInput" placeholder="Paste #sync=... or full sync link here"
+              class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[11px] text-slate-200 placeholder-slate-500" />
+            <button type="button" onclick="importDeviceSyncLinkFromInput()"
+              class="px-3 py-2 rounded-xl bg-[#EA580C] text-white text-[11px] font-bold shrink-0 cursor-pointer">
+              Apply
+            </button>
+          </div>
         </div>
       </div>
 
@@ -965,23 +934,107 @@
     }
 
     // ==================== 1-TAP NEW DEVICE SYNC LINK ====================
+    function decodeSyncTokenString(rawStr) {
+      if (!rawStr) return null;
+      let tokenPart = rawStr.trim();
+      if (tokenPart.includes('#sync=')) {
+        tokenPart = tokenPart.split('#sync=')[1].split('&')[0];
+      } else if (tokenPart.includes('?sync=')) {
+        tokenPart = tokenPart.split('?sync=')[1].split('&')[0];
+      } else if (tokenPart.includes('sync=')) {
+        tokenPart = tokenPart.split('sync=')[1].split('&')[0];
+      }
+      // Restore URL-safe base64 characters if modified by messaging apps
+      let b64 = decodeURIComponent(tokenPart).replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4 !== 0) b64 += '=';
+      const jsonStr = decodeURIComponent(escape(atob(b64)));
+      const decoded = JSON.parse(jsonStr);
+      return {
+        refreshToken: decoded.refreshToken || decoded.r || '',
+        appKey: decoded.appKey || decoded.k || '',
+        appSecret: decoded.appSecret || decoded.s || '',
+        accessToken: decoded.accessToken || decoded.a || ''
+      };
+    }
+
+    function encodeSyncTokenString(payload) {
+      const compact = {
+        r: payload.refreshToken || '',
+        k: payload.appKey || '',
+        s: payload.appSecret || '',
+        a: payload.accessToken || ''
+      };
+      const jsonStr = JSON.stringify(compact);
+      return btoa(unescape(encodeURIComponent(jsonStr)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
     function parseUrlSyncPayload() {
-      const params = new URLSearchParams(window.location.search);
-      const syncParam = params.get('sync');
-      if (!syncParam) return;
+      const hashStr = window.location.hash || '';
+      const searchStr = window.location.search || '';
+      const raw = hashStr.includes('sync=') ? hashStr : (searchStr.includes('sync=') ? searchStr : '');
+      if (!raw) return;
       try {
-        const decoded = JSON.parse(atob(decodeURIComponent(syncParam)));
-        dbxConfig = {
-          refreshToken: decoded.refreshToken || '',
-          appKey: decoded.appKey || '',
-          appSecret: decoded.appSecret || '',
-          accessToken: decoded.accessToken || ''
-        };
-        saveDbxConfig();
-        window.history.replaceState({}, document.title, window.location.pathname);
-        showToast('Device linked via 1-Tap Sync Link!');
+        const parsed = decodeSyncTokenString(raw);
+        if (parsed && (parsed.refreshToken || parsed.accessToken || parsed.appKey)) {
+          dbxConfig = parsed;
+          saveDbxConfig();
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          showToast('Device linked via 1-Tap Sync Link!');
+        }
       } catch (e) {
         console.error('Invalid sync parameter', e);
+      }
+    }
+
+    function generateDeviceSyncLink() {
+      const payload = {
+        refreshToken: document.getElementById('dbxRefreshToken').value.trim(),
+        appKey: document.getElementById('dbxAppKey').value.trim(),
+        appSecret: document.getElementById('dbxAppSecret').value.trim(),
+        accessToken: document.getElementById('dbxAccessToken').value.trim()
+      };
+      if (!payload.refreshToken && !payload.accessToken) {
+        showToast('Enter Refresh Token or Access Token first');
+        return;
+      }
+      const encoded = encodeSyncTokenString(payload);
+      const baseUrl = window.location.href.split('#')[0].split('?')[0];
+      const url = `${baseUrl}#sync=${encoded}`;
+      const out = document.getElementById('deviceSyncLinkOutput');
+      out.value = url;
+      out.select();
+      copyToClipboard(url);
+      showToast('1-Tap Sync Link copied to clipboard!');
+    }
+
+    async function importDeviceSyncLinkFromInput() {
+      const rawInput = document.getElementById('pasteSyncLinkInput').value.trim();
+      if (!rawInput) {
+        showToast('Paste a 1-Tap Sync Link first');
+        return;
+      }
+      try {
+        const parsed = decodeSyncTokenString(rawInput);
+        if (!parsed || (!parsed.refreshToken && !parsed.accessToken && !parsed.appKey)) {
+          throw new Error('Empty credentials');
+        }
+        dbxConfig = parsed;
+        saveDbxConfig();
+        document.getElementById('dbxRefreshToken').value = dbxConfig.refreshToken;
+        document.getElementById('dbxAppKey').value = dbxConfig.appKey;
+        document.getElementById('dbxAppSecret').value = dbxConfig.appSecret;
+        document.getElementById('dbxAccessToken').value = dbxConfig.accessToken;
+        document.getElementById('pasteSyncLinkInput').value = '';
+        showToast('Sync credentials applied!');
+        closeSyncModal();
+        await pullFromDropbox(true);
+      } catch (e) {
+        showToast('Invalid sync link format');
       }
     }
 
