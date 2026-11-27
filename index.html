@@ -333,7 +333,7 @@
 
           <div class="flex items-center justify-between pt-0.5">
             <span class="text-[11px] text-slate-400 font-semibold uppercase">Calculated Avg Bird Weight</span>
-            <span id="resAvgBirdWeight" class="text-sm font-extrabold text-white">0.000 kg</span>
+            <span id="resAvgBirdWeight" class="text-sm font-extrabold text-white">0.00 kg</span>
           </div>
         </div>
 
@@ -429,7 +429,7 @@
           </div>
           <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
             <p class="text-[10px] font-bold text-slate-500 uppercase">Average Weight</p>
-            <p id="sumAvgWeight" class="text-base font-extrabold text-emerald-700 mt-0.5">0.000 kg</p>
+            <p id="sumAvgWeight" class="text-base font-extrabold text-emerald-700 mt-0.5">0.00 kg</p>
           </div>
         </div>
 
@@ -1799,7 +1799,7 @@
       document.getElementById('rowTotalBirdsBadge').textContent = totalBirds.toLocaleString();
       document.getElementById('resNetWeight').textContent = netWeight.toFixed(2);
       document.getElementById('resTotalBirds').textContent = totalBirds.toLocaleString();
-      document.getElementById('resAvgBirdWeight').textContent = `${avgBirdWeight.toFixed(3)} kg`;
+      document.getElementById('resAvgBirdWeight').textContent = `${avgBirdWeight.toFixed(2)} kg`;
 
       const statusEl = document.getElementById('bakulBalanceStatus');
       const submitBtn = document.getElementById('submitCatchingBtn');
@@ -2144,7 +2144,7 @@
 
       document.getElementById('sumTotalNetWeight').textContent = `${totalNet.toFixed(2)} kg`;
       document.getElementById('sumTotalBirds').textContent = totalBirds.toLocaleString();
-      document.getElementById('sumAvgWeight').textContent = `${avgWt.toFixed(3)} kg`;
+      document.getElementById('sumAvgWeight').textContent = `${avgWt.toFixed(2)} kg`;
 
       const byHouse = {};
       filtered.forEach(l => {
@@ -2174,7 +2174,7 @@
             </div>
             <div class="text-right text-xs">
               <p class="font-extrabold text-[#EA580C]">${item.net.toFixed(2)} kg</p>
-              <p class="text-[11px] text-slate-600 font-semibold">${item.birds.toLocaleString()} birds &bull; Avg ${hAvg.toFixed(3)} kg</p>
+              <p class="text-[11px] text-slate-600 font-semibold">${item.birds.toLocaleString()} birds &bull; Avg ${hAvg.toFixed(2)} kg</p>
             </div>
           </div>
         `;
@@ -2209,13 +2209,13 @@
         ? houseKeys.map(hNum => {
             const item = byHouse[hNum];
             const hAvg = item.birds > 0 ? (item.net / item.birds) : 0;
-            return `${hNum} - ${item.net.toFixed(2)} / ${item.birds.toLocaleString()} - ${hAvg.toFixed(3)}`;
+            return `${hNum} - ${item.net.toFixed(2)} / ${item.birds} - ${hAvg.toFixed(2)}`;
           })
         : ['No catching records found'];
 
       const msg = [
         farmName,
-        `Date: ${formatDisplayDate(dateRaw)}`,
+        formatDisplayDate(dateRaw),
         ...houseLines
       ].join('\n');
 
@@ -2569,7 +2569,7 @@
             <td colspan="2" class="py-2.5 px-2.5 text-xs">TOTAL</td>
             <td class="py-2.5 px-2.5 text-right text-xs text-[#EA580C]">0.00 kg</td>
             <td class="py-2.5 px-2.5 text-right text-xs">0</td>
-            <td class="py-2.5 px-2.5 text-right text-xs">0.000 kg</td>
+            <td class="py-2.5 px-2.5 text-right text-xs">0.00 kg</td>
           </tr>
         `;
         return;
@@ -2596,7 +2596,7 @@
             </td>
             <td class="py-2.5 px-2.5 text-right font-bold text-[#EA580C]">${net.toFixed(2)}</td>
             <td class="py-2.5 px-2.5 text-right font-bold text-slate-900">${birds.toLocaleString()}</td>
-            <td class="py-2.5 px-2.5 text-right font-semibold text-emerald-700">${avg.toFixed(3)}</td>
+            <td class="py-2.5 px-2.5 text-right font-semibold text-emerald-700">${avg.toFixed(2)}</td>
           </tr>
         `;
       }).join('');
@@ -2607,7 +2607,7 @@
           <td colspan="2" class="py-2.5 px-2.5 text-xs uppercase">Total (${logs.length} DOs)</td>
           <td class="py-2.5 px-2.5 text-right text-xs text-[#EA580C]">${totalNet.toFixed(2)} kg</td>
           <td class="py-2.5 px-2.5 text-right text-xs">${totalBirds.toLocaleString()}</td>
-          <td class="py-2.5 px-2.5 text-right text-xs text-emerald-700">${overallAvg.toFixed(3)} kg</td>
+          <td class="py-2.5 px-2.5 text-right text-xs text-emerald-700">${overallAvg.toFixed(2)} kg</td>
         </tr>
       `;
     }
@@ -2636,7 +2636,7 @@
         const avg = birds > 0 ? (net / birds) : 0;
         totalNet += net;
         totalBirds += birds;
-        return `${formatDisplayDate(l.date)} | ${l.doNumber} (${l.houseNumber}) | ${net.toFixed(2)} kg | ${birds.toLocaleString()} birds | Avg ${avg.toFixed(3)} kg`;
+        return `${formatDisplayDate(l.date)} | ${l.doNumber} (${l.houseNumber}) | ${net.toFixed(2)} kg | ${birds.toLocaleString()} birds | Avg ${avg.toFixed(2)} kg`;
       });
 
       const overallAvg = totalBirds > 0 ? (totalNet / totalBirds) : 0;
@@ -2649,7 +2649,7 @@
         ``,
         `*TOTAL NET WEIGHT:* ${totalNet.toFixed(2)} kg`,
         `*TOTAL BIRDS:* ${totalBirds.toLocaleString()}`,
-        `*AVERAGE WEIGHT:* ${overallAvg.toFixed(3)} kg`
+        `*AVERAGE WEIGHT:* ${overallAvg.toFixed(2)} kg`
       ].join('\n');
 
       openWhatsApp(msg);
@@ -2718,7 +2718,7 @@
               </div>
               <div>
                 <span class="block text-[10px] text-slate-400 font-bold">Avg Weight</span>
-                <strong class="text-emerald-700">${avgWt.toFixed(3)} kg</strong>
+                <strong class="text-emerald-700">${avgWt.toFixed(2)} kg</strong>
               </div>
             </div>
 
@@ -3133,7 +3133,7 @@
           grandBirds += dayBirds;
 
           lines.push(`  • ${house.number}`);
-          lines.push(`    Daily Catch: ${dayNet.toFixed(2)} kg | ${dayBirds.toLocaleString()} birds | Avg: ${avgWt.toFixed(3)} kg`);
+          lines.push(`    Daily Catch: ${dayNet.toFixed(2)} kg | ${dayBirds.toLocaleString()} birds | Avg: ${avgWt.toFixed(2)} kg`);
           lines.push(`    Intake: ${intake.toLocaleString()} | Mortality: ${mort.toLocaleString()} | Balance: ${balance.toLocaleString()}`);
           lines.push(`    Cycle Catch: ${cumNet.toFixed(2)} kg (${cumBirds.toLocaleString()} birds)`);
         });
@@ -3141,6 +3141,10 @@
       });
 
       const grandAvg = grandBirds > 0 ? (grandNet / grandBirds) : 0;
+      lines.push(`------------------------------------`);
+      lines.push(`TOTAL DAILY NET WEIGHT: ${grandNet.toFixed(2)} kg`);
+      lines.push(`TOTAL DAILY BIRDS:      ${grandBirds.toLocaleString()}`);
+      lines.push(`OVERALL AVG WEIGHT:     ${grandAvg.toFixed(2)} kg`);
       lines.push(`------------------------------------`);
       lines.push(`TOTAL DAILY NET WEIGHT: ${grandNet.toFixed(2)} kg`);
       lines.push(`TOTAL DAILY BIRDS:      ${grandBirds.toLocaleString()}`);
