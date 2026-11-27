@@ -362,12 +362,12 @@
 
         <div class="grid grid-cols-2 gap-2.5 mb-3">
           <div>
-            <label for="mortCycleSelect" class="block text-[11px] font-bold text-slate-600 mb-1">1. Select Cycle</label>
-            <select id="mortCycleSelect" onchange="renderUserMortalityList()" class="input-m3 !py-2 !text-xs"></select>
+            <label for="mortFarmSelect" class="block text-[11px] font-bold text-slate-600 mb-1">1. Select Group (Farm)</label>
+            <select id="mortFarmSelect" onchange="onUserMortalityFarmChange()" class="input-m3 !py-2 !text-xs"></select>
           </div>
           <div>
-            <label for="mortFarmSelect" class="block text-[11px] font-bold text-slate-600 mb-1">2. Select Group (Farm)</label>
-            <select id="mortFarmSelect" onchange="onUserMortalityFarmChange()" class="input-m3 !py-2 !text-xs"></select>
+            <label for="mortCycleSelect" class="block text-[11px] font-bold text-slate-600 mb-1">2. Select Cycle</label>
+            <select id="mortCycleSelect" onchange="renderUserMortalityList()" class="input-m3 !py-2 !text-xs"></select>
           </div>
         </div>
 
@@ -670,11 +670,11 @@
       <div class="card-m3 p-4">
         <div class="mb-2">
           <h3 class="text-sm font-extrabold text-slate-900">Manage Farms (Groups) &amp; Cycle Number</h3>
-          <p class="text-[11px] text-slate-500">Assign or update each Farm's active Cycle (e.g. Cycle 1, C-2026-02) to start fresh balance &amp; mortality inputs.</p>
+          <p class="text-[11px] text-slate-500">Assign or update each Farm's active Cycle (e.g. 7, 45) to start fresh balance &amp; mortality inputs.</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
           <input type="text" id="newFarmName" placeholder="Farm Name (e.g. MIV Farm 1)" class="input-m3 !py-2 !text-xs sm:col-span-2" />
-          <input type="text" id="newFarmCycle" placeholder="Cycle No (e.g. Cycle 1)" class="input-m3 !py-2 !text-xs" />
+          <input type="text" id="newFarmCycle" placeholder="Cycle No (e.g. 7)" class="input-m3 !py-2 !text-xs" />
         </div>
         <button type="button" onclick="addFarm()" class="btn-primary w-full py-2.5 text-xs mb-3">+ Add Farm Group</button>
         <div id="adminFarmList" class="space-y-1.5"></div>
@@ -919,7 +919,7 @@
     const LOCAL_DBX_KEY = 'miv_catching_dbx_cfg_v2';
     const DBX_CATCHING_PATH = '/data/miv_catching_database.json';
     const DEFAULT_PASSCODE = '1234';
-    const DEFAULT_CYCLE = 'Cycle 1';
+    const LEGACY_PLACEHOLDER_CYCLES = new Set(['Cycle 1', 'C-2026-04']);
 
     let currentRole = 'user';
     let currentTab = 'catching';
@@ -1048,13 +1048,23 @@
       return `${d}-${m}-${y}`;
     }
 
+    function sanitizeCycleName(raw) {
+      const cleaned = String(raw || '').trim();
+      if (!cleaned || LEGACY_PLACEHOLDER_CYCLES.has(cleaned)) return '';
+      return cleaned;
+    }
+
     function getFarmActiveCycle(farmId) {
       const farm = db.farms.find(f => f.id === farmId);
-      return (farm && farm.cycle && farm.cycle.trim()) ? farm.cycle.trim() : DEFAULT_CYCLE;
+      return farm ? sanitizeCycleName(farm.cycle) : '';
     }
 
     function getHouseCycleMortality(farmId, cycleName, houseId) {
-      const cycleKey = (cycleName || getFarmActiveCycle(farmId)).trim();
+      const cycleKey = sanitizeCycleName(cycleName) || getFarmActiveCycle(farmId);
+      if (!cycleKey) {
+        const house = db.houses.find(h => h.id === houseId);
+        return Number(house?.mortality || 0);
+      }
       const fromMap = db.cycleMortality?.[farmId]?.[cycleKey]?.[houseId];
       if (fromMap !== undefined && fromMap !== null) {
         return Number(fromMap || 0);
@@ -1069,36 +1079,63 @@
     }
 
     function setHouseCycleMortality(farmId, cycleName, houseId, value) {
-      const cycleKey = (cycleName || getFarmActiveCycle(farmId)).trim();
-      if (!db.cycleMortality) db.cycleMortality = {};
-      if (!db.cycleMortality[farmId]) db.cycleMortality[farmId] = {};
-      if (!db.cycleMortality[farmId][cycleKey]) db.cycleMortality[farmId][cycleKey] = {};
+      const cycleKey = sanitizeCycleName(cycleName) || getFarmActiveCycle(farmId);
       const cleanVal = Math.max(0, Number(value || 0));
-      db.cycleMortality[farmId][cycleKey][houseId] = cleanVal;
+      if (cycleKey) {
+        if (!db.cycleMortality) db.cycleMortality = {};
+        if (!db.cycleMortality[farmId]) db.cycleMortality[farmId] = {};
+        if (!db.cycleMortality[farmId][cycleKey]) db.cycleMortality[farmId][cycleKey] = {};
+        db.cycleMortality[farmId][cycleKey][houseId] = cleanVal;
+      }
 
-      // Mirror onto house.mortality when editing the farm's active cycle
-      if (cycleKey === getFarmActiveCycle(farmId)) {
+      // Mirror onto house.mortality when editing the farm's active cycle or when no cycle is set
+      if (!cycleKey || cycleKey === getFarmActiveCycle(farmId)) {
         const house = db.houses.find(h => h.id === houseId);
         if (house) house.mortality = cleanVal;
       }
     }
 
+    function getCyclesForFarm(farmId) {
+      const set = new Set();
+      if (!farmId) return [];
+      const activeCyc = getFarmActiveCycle(farmId);
+      if (activeCyc) set.add(activeCyc);
+
+      (db.catchingLogs || []).forEach(l => {
+        if (l.farmId === farmId) {
+          const c = sanitizeCycleName(l.cycle);
+          if (c) set.add(c);
+        }
+      });
+
+      if (db.cycleMortality && db.cycleMortality[farmId]) {
+        Object.keys(db.cycleMortality[farmId]).forEach(c => {
+          const clean = sanitizeCycleName(c);
+          if (clean) set.add(clean);
+        });
+      }
+
+      return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    }
+
     function getAllKnownCycles() {
       const set = new Set();
       (db.farms || []).forEach(f => {
-        if (f.cycle && f.cycle.trim()) set.add(f.cycle.trim());
+        const c = sanitizeCycleName(f.cycle);
+        if (c) set.add(c);
       });
       (db.catchingLogs || []).forEach(l => {
-        if (l.cycle && l.cycle.trim()) set.add(l.cycle.trim());
+        const c = sanitizeCycleName(l.cycle);
+        if (c) set.add(c);
       });
       if (db.cycleMortality) {
         Object.values(db.cycleMortality).forEach(farmCycles => {
           Object.keys(farmCycles || {}).forEach(c => {
-            if (c && c.trim()) set.add(c.trim());
+            const clean = sanitizeCycleName(c);
+            if (clean) set.add(clean);
           });
         });
       }
-      if (set.size === 0) set.add(DEFAULT_CYCLE);
       return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
     }
 
@@ -1108,17 +1145,28 @@
         if (!raw) return structuredClone(defaultDatabase);
         const parsed = JSON.parse(raw);
         const farms = Array.isArray(parsed.farms)
-          ? parsed.farms.map(f => ({ ...f, cycle: (f.cycle && f.cycle.trim()) ? f.cycle.trim() : DEFAULT_CYCLE }))
+          ? parsed.farms.map(f => ({ ...f, cycle: sanitizeCycleName(f.cycle) }))
           : [];
         const houses = Array.isArray(parsed.houses) ? parsed.houses : [];
-        const cycleMortality = (parsed.cycleMortality && typeof parsed.cycleMortality === 'object')
-          ? parsed.cycleMortality
-          : {};
+        const cycleMortality = {};
 
-        // Migrate legacy house.mortality into active farm cycle if not yet mapped
+        if (parsed.cycleMortality && typeof parsed.cycleMortality === 'object') {
+          Object.entries(parsed.cycleMortality).forEach(([fId, farmCycles]) => {
+            if (!farmCycles || typeof farmCycles !== 'object') return;
+            Object.entries(farmCycles).forEach(([cKey, houseMap]) => {
+              const cleanCyc = sanitizeCycleName(cKey);
+              if (!cleanCyc) return;
+              if (!cycleMortality[fId]) cycleMortality[fId] = {};
+              cycleMortality[fId][cleanCyc] = { ...(houseMap || {}) };
+            });
+          });
+        }
+
+        // Migrate legacy house.mortality into active farm cycle if present and not yet mapped
         houses.forEach(h => {
           const farm = farms.find(f => f.id === h.farmId);
-          const cyc = farm?.cycle || DEFAULT_CYCLE;
+          const cyc = sanitizeCycleName(farm?.cycle);
+          if (!cyc) return;
           if (!cycleMortality[h.farmId]) cycleMortality[h.farmId] = {};
           if (!cycleMortality[h.farmId][cyc]) cycleMortality[h.farmId][cyc] = {};
           if (cycleMortality[h.farmId][cyc][h.id] === undefined && h.mortality !== undefined) {
@@ -1132,7 +1180,9 @@
           farms,
           houses,
           bakulTypes: Array.isArray(parsed.bakulTypes) ? parsed.bakulTypes : [],
-          catchingLogs: Array.isArray(parsed.catchingLogs) ? parsed.catchingLogs : [],
+          catchingLogs: Array.isArray(parsed.catchingLogs)
+            ? parsed.catchingLogs.map(l => ({ ...l, cycle: sanitizeCycleName(l.cycle) }))
+            : [],
           cycleMortality
         };
       } catch (e) {
@@ -1367,7 +1417,7 @@
           if (Array.isArray(cloudDb.farms) && (cloudDb.farms.length > 0 || !localIsEmpty)) {
             db.farms = cloudDb.farms.map(f => ({
               ...f,
-              cycle: (f.cycle && f.cycle.trim()) ? f.cycle.trim() : DEFAULT_CYCLE
+              cycle: sanitizeCycleName(f.cycle)
             }));
           }
           if (Array.isArray(cloudDb.houses) && (cloudDb.houses.length > 0 || !localIsEmpty)) {
@@ -1380,21 +1430,31 @@
             db.bakulTypes = cloudDb.bakulTypes;
           }
           if (cloudDb.cycleMortality && typeof cloudDb.cycleMortality === 'object') {
-            db.cycleMortality = { ...db.cycleMortality, ...cloudDb.cycleMortality };
+            Object.entries(cloudDb.cycleMortality).forEach(([fId, farmCycles]) => {
+              if (!farmCycles || typeof farmCycles !== 'object') return;
+              Object.entries(farmCycles).forEach(([cKey, houseMap]) => {
+                const cleanCyc = sanitizeCycleName(cKey);
+                if (!cleanCyc) return;
+                if (!db.cycleMortality[fId]) db.cycleMortality[fId] = {};
+                db.cycleMortality[fId][cleanCyc] = { ...(db.cycleMortality[fId][cleanCyc] || {}), ...(houseMap || {}) };
+              });
+            });
           }
           if (cloudDb.adminPasscode) db.adminPasscode = cloudDb.adminPasscode;
           if (cloudDb.logPasscode) db.logPasscode = cloudDb.logPasscode;
         }
 
-        // Ensure migrated cycleMortality entries exist for loaded houses
+        // Ensure migrated cycleMortality entries exist for loaded houses when active cycle exists
         db.houses.forEach(h => {
           const cyc = getFarmActiveCycle(h.farmId);
-          if (db.cycleMortality?.[h.farmId]?.[cyc]?.[h.id] === undefined && h.mortality !== undefined) {
+          if (cyc && db.cycleMortality?.[h.farmId]?.[cyc]?.[h.id] === undefined && h.mortality !== undefined) {
             setHouseCycleMortality(h.farmId, cyc, h.id, Number(h.mortality || 0));
           }
         });
 
-        db.catchingLogs = Array.from(mergedMap.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        db.catchingLogs = Array.from(mergedMap.values())
+          .map(l => ({ ...l, cycle: sanitizeCycleName(l.cycle) }))
+          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         saveLocalDB();
 
         ensureDefaultSelections();
@@ -1604,7 +1664,8 @@
       const activeFarm = db.farms.find(f => f.id === selectedFarmId);
       const cycleBadge = document.getElementById('activeFarmCycleBadge');
       if (cycleBadge) {
-        cycleBadge.textContent = activeFarm ? `Cycle: ${getFarmActiveCycle(activeFarm.id)}` : 'Cycle: -';
+        const activeCyc = activeFarm ? getFarmActiveCycle(activeFarm.id) : '';
+        cycleBadge.textContent = activeCyc ? `Cycle: ${activeCyc}` : 'Cycle: -';
       }
 
       const houses = sortHousesNatural(db.houses.filter(h => h.farmId === selectedFarmId), 'number');
@@ -1840,29 +1901,25 @@
       const farmOpts = db.farms.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
       const emptyFarmOpt = `<option value="">-- No Farms --</option>`;
       const cycles = getAllKnownCycles();
-      const cycleOpts = cycles.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      const cycleOpts = cycles.length
+        ? cycles.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+        : `<option value="">-- No Cycle --</option>`;
 
-      // 1. User Mortality Cycle & Farm Dropdowns
-      const mortCycle = document.getElementById('mortCycleSelect');
-      const prevMortCycle = mortCycle.value;
-      mortCycle.innerHTML = cycleOpts;
+      // 1. User Mortality Farm (1st) & Cycle (2nd, dynamically scoped to selected Farm)
       const mortFarm = document.getElementById('mortFarmSelect');
       const prevMortFarm = mortFarm.value;
       mortFarm.innerHTML = db.farms.length ? farmOpts : emptyFarmOpt;
       if (prevMortFarm && db.farms.some(f => f.id === prevMortFarm)) {
         mortFarm.value = prevMortFarm;
       }
-      if (prevMortCycle && cycles.includes(prevMortCycle)) {
-        mortCycle.value = prevMortCycle;
-      } else if (mortFarm.value) {
-        mortCycle.value = getFarmActiveCycle(mortFarm.value);
-      }
-      renderUserMortalityList();
+      populateUserMortalityCycles(true);
 
       // 2. Daily Sum Cycle, Farm & Balance Farm Dropdowns
       const sumCycle = document.getElementById('sumCycleSelect');
       const prevSumCycle = sumCycle.value;
-      sumCycle.innerHTML = cycleOpts;
+      sumCycle.innerHTML = `<option value="ALL">All Cycles</option>` + (cycles.length
+        ? cycles.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+        : '');
 
       const sumFarm = document.getElementById('sumFarmSelect');
       const prevSumFarm = sumFarm.value;
@@ -1878,10 +1935,11 @@
         balFarm.value = prevBalFarm;
       }
 
-      if (prevSumCycle && cycles.includes(prevSumCycle)) {
+      if (prevSumCycle && (prevSumCycle === 'ALL' || cycles.includes(prevSumCycle))) {
         sumCycle.value = prevSumCycle;
       } else if (sumFarm.value) {
-        sumCycle.value = getFarmActiveCycle(sumFarm.value);
+        const activeCyc = getFarmActiveCycle(sumFarm.value);
+        sumCycle.value = (activeCyc && cycles.includes(activeCyc)) ? activeCyc : 'ALL';
       }
 
       onSummaryFarmChange(false);
@@ -1890,7 +1948,9 @@
       // 3. Executive Cycle, Farm & House Dropdowns
       const execCycle = document.getElementById('execCycleSelect');
       const prevExecCycle = execCycle.value;
-      execCycle.innerHTML = `<option value="ALL">All Cycles</option>` + cycleOpts;
+      execCycle.innerHTML = `<option value="ALL">All Cycles</option>` + (cycles.length
+        ? cycles.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+        : '');
       if (prevExecCycle && (prevExecCycle === 'ALL' || cycles.includes(prevExecCycle))) {
         execCycle.value = prevExecCycle;
       }
@@ -1917,21 +1977,45 @@
     }
 
     // ==================== USER MORTALITY TAB ====================
-    function onUserMortalityFarmChange() {
+    function populateUserMortalityCycles(preserveSelection = false) {
       const farmId = document.getElementById('mortFarmSelect').value;
-      if (farmId) {
-        const activeCycle = getFarmActiveCycle(farmId);
-        const cycleSel = document.getElementById('mortCycleSelect');
-        if (Array.from(cycleSel.options).some(o => o.value === activeCycle)) {
-          cycleSel.value = activeCycle;
-        }
+      const cycleSel = document.getElementById('mortCycleSelect');
+      const prevCycle = cycleSel.value;
+
+      if (!farmId) {
+        cycleSel.innerHTML = `<option value="">-- Select Group First --</option>`;
+        return;
       }
+
+      const farmCycles = getCyclesForFarm(farmId);
+      const activeCycle = getFarmActiveCycle(farmId);
+
+      if (!farmCycles.length) {
+        cycleSel.innerHTML = `<option value="">-- No Cycle Set --</option>`;
+        return;
+      }
+
+      cycleSel.innerHTML = farmCycles
+        .map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
+        .join('');
+
+      if (preserveSelection && prevCycle && farmCycles.includes(prevCycle)) {
+        cycleSel.value = prevCycle;
+      } else if (activeCycle && farmCycles.includes(activeCycle)) {
+        cycleSel.value = activeCycle;
+      } else {
+        cycleSel.value = farmCycles[0];
+      }
+    }
+
+    function onUserMortalityFarmChange() {
+      populateUserMortalityCycles(false);
       renderUserMortalityList();
     }
 
     function renderUserMortalityList() {
       const farmId = document.getElementById('mortFarmSelect').value;
-      const cycleName = document.getElementById('mortCycleSelect').value || getFarmActiveCycle(farmId);
+      const cycleName = sanitizeCycleName(document.getElementById('mortCycleSelect').value) || getFarmActiveCycle(farmId);
       const container = document.getElementById('userMortalityHouseList');
 
       if (!farmId) {
@@ -1947,12 +2031,15 @@
 
       container.innerHTML = houses.map(h => {
         const mortVal = getHouseCycleMortality(farmId, cycleName, h.id);
+        const cycleBadgeHtml = cycleName
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C]">${escapeHtml(cycleName)}</span>`
+          : '';
         return `
           <div class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/90">
             <div class="min-w-0">
               <div class="flex items-center gap-1.5">
                 <span class="text-xs font-extrabold text-slate-900">${escapeHtml(h.number)}</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C]">${escapeHtml(cycleName)}</span>
+                ${cycleBadgeHtml}
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5">Birds Intake: <strong>${Number(h.intake || 0).toLocaleString()}</strong></p>
             </div>
@@ -1968,7 +2055,7 @@
 
     async function saveUserManualMortality() {
       const farmId = document.getElementById('mortFarmSelect').value;
-      const cycleName = document.getElementById('mortCycleSelect').value || getFarmActiveCycle(farmId);
+      const cycleName = sanitizeCycleName(document.getElementById('mortCycleSelect').value) || getFarmActiveCycle(farmId);
       if (!farmId) {
         showToast('Select a Farm first');
         return;
@@ -1989,7 +2076,7 @@
       renderDailyBalanceSummary();
       renderExecutiveReport();
       renderAdminLists();
-      showToast(`Mortality saved for ${cycleName}!`);
+      showToast(cycleName ? `Mortality saved for ${cycleName}!` : 'Mortality saved!');
       await pushToDropbox(true);
     }
 
@@ -2004,8 +2091,10 @@
       if (autoSyncCycle && farmId) {
         const activeCycle = getFarmActiveCycle(farmId);
         const sumCycle = document.getElementById('sumCycleSelect');
-        if (Array.from(sumCycle.options).some(o => o.value === activeCycle)) {
+        if (activeCycle && Array.from(sumCycle.options).some(o => o.value === activeCycle)) {
           sumCycle.value = activeCycle;
+        } else {
+          sumCycle.value = 'ALL';
         }
         // Keep Balance farm aligned if user hasn't explicitly picked another
         const balFarm = document.getElementById('balFarmSelect');
@@ -2031,7 +2120,7 @@
 
     function logMatchesCycle(log, selectedCycle) {
       if (!selectedCycle || selectedCycle === 'ALL') return true;
-      const logCyc = (log.cycle && log.cycle.trim()) ? log.cycle.trim() : getFarmActiveCycle(log.farmId);
+      const logCyc = sanitizeCycleName(log.cycle) || getFarmActiveCycle(log.farmId);
       return logCyc === selectedCycle;
     }
 
@@ -2069,7 +2158,8 @@
       const breakdownEl = document.getElementById('dailySummaryBreakdown');
       const houseKeys = sortHousesNatural(Object.keys(byHouse));
       if (!houseKeys.length) {
-        breakdownEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching records found for ${escapeHtml(selectedCycle)} on selected Group &amp; Date.</div>`;
+        const cycLabel = (selectedCycle && selectedCycle !== 'ALL') ? `for ${escapeHtml(selectedCycle)} ` : '';
+        breakdownEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">No catching records found ${cycLabel}on selected Group &amp; Date.</div>`;
         return;
       }
 
@@ -2492,7 +2582,8 @@
         const net = Number(l.netWeight || 0);
         const birds = Number(l.totalBirds || 0);
         const avg = birds > 0 ? (net / birds) : 0;
-        const rowCycle = (l.cycle && l.cycle.trim()) ? l.cycle.trim() : getFarmActiveCycle(l.farmId);
+        const rowCycle = sanitizeCycleName(l.cycle) || getFarmActiveCycle(l.farmId);
+        const cycleSuffix = rowCycle ? ` (${escapeHtml(rowCycle)})` : '';
         totalNet += net;
         totalBirds += birds;
 
@@ -2501,7 +2592,7 @@
             <td class="py-2.5 px-2.5 font-semibold text-slate-700 whitespace-nowrap">${escapeHtml(formatDisplayDate(l.date))}</td>
             <td class="py-2.5 px-2.5">
               <span class="font-extrabold text-slate-900 block">${escapeHtml(l.doNumber)}</span>
-              <span class="text-[10px] text-slate-500">${escapeHtml(l.farmName)} &bull; ${escapeHtml(l.houseNumber)} (${escapeHtml(rowCycle)})</span>
+              <span class="text-[10px] text-slate-500">${escapeHtml(l.farmName)} &bull; ${escapeHtml(l.houseNumber)}${cycleSuffix}</span>
             </td>
             <td class="py-2.5 px-2.5 text-right font-bold text-[#EA580C]">${net.toFixed(2)}</td>
             <td class="py-2.5 px-2.5 text-right font-bold text-slate-900">${birds.toLocaleString()}</td>
@@ -2588,7 +2679,10 @@
           .map(r => `${r.bakulName}: ${r.qty} × ${r.isi}`)
           .join(' • ');
         const avgWt = log.totalBirds > 0 ? (Number(log.netWeight) / Number(log.totalBirds)) : 0;
-        const logCycle = (log.cycle && log.cycle.trim()) ? log.cycle.trim() : getFarmActiveCycle(log.farmId);
+        const logCycle = sanitizeCycleName(log.cycle) || getFarmActiveCycle(log.farmId);
+        const cyclePillHtml = logCycle
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">${escapeHtml(logCycle)}</span>`
+          : '';
 
         return `
           <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2">
@@ -2597,7 +2691,7 @@
                 <div class="flex flex-wrap items-center gap-1.5">
                   <span class="text-xs font-extrabold text-slate-900">${escapeHtml(log.farmName)}</span>
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C]">${escapeHtml(log.houseNumber)}</span>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">${escapeHtml(logCycle)}</span>
+                  ${cyclePillHtml}
                 </div>
                 <p class="text-[11px] text-slate-500 mt-0.5">Date: <strong>${escapeHtml(formatDisplayDate(log.date))}</strong> &bull; DO: <strong>${escapeHtml(log.doNumber)}</strong></p>
               </div>
@@ -2779,11 +2873,14 @@
       document.getElementById('adminFarmList').innerHTML = db.farms.length
         ? db.farms.map(f => {
             const cyc = getFarmActiveCycle(f.id);
+            const cycBadge = cyc
+              ? `<span class="px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C] text-[10px] font-extrabold shrink-0">${escapeHtml(cyc)}</span>`
+              : `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 text-[10px] font-bold shrink-0">No Cycle</span>`;
             return `
               <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                 <div class="flex items-center gap-2 min-w-0">
                   <span class="font-bold text-slate-800 truncate">${escapeHtml(f.name)}</span>
-                  <span class="px-2 py-0.5 rounded-full bg-orange-100 text-[#EA580C] text-[10px] font-extrabold shrink-0">${escapeHtml(cyc)}</span>
+                  ${cycBadge}
                 </div>
                 <div class="flex gap-2 shrink-0">
                   <button type="button" onclick="editFarm('${f.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit / Cycle</button>
@@ -2800,11 +2897,12 @@
             const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
             const cyc = getFarmActiveCycle(h.farmId);
             const mort = getHouseCycleMortality(h.farmId, cyc, h.id);
+            const cycText = cyc ? ` (${escapeHtml(cyc)})` : '';
             return `
               <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                 <div>
                   <span class="font-bold text-slate-900">${escapeHtml(farmName)} → ${escapeHtml(h.number)}</span>
-                  <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()} &bull; Mortality (${escapeHtml(cyc)}): ${mort.toLocaleString()}</span>
+                  <span class="block text-[10px] text-slate-500">Intake: ${Number(h.intake || 0).toLocaleString()} &bull; Mortality${cycText}: ${mort.toLocaleString()}</span>
                 </div>
                 <div class="flex gap-2">
                   <button type="button" onclick="editHouse('${h.id}')" class="text-[#EA580C] font-bold cursor-pointer">Edit</button>
@@ -2821,11 +2919,12 @@
             const farmName = db.farms.find(f => f.id === h.farmId)?.name || 'Unassigned';
             const cyc = getFarmActiveCycle(h.farmId);
             const mort = getHouseCycleMortality(h.farmId, cyc, h.id);
+            const cycPrefix = cyc ? `${escapeHtml(cyc)} &bull; ` : '';
             return `
               <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                 <div class="min-w-0">
                   <span class="font-extrabold text-slate-900 block truncate">${escapeHtml(farmName)} — ${escapeHtml(h.number)}</span>
-                  <span class="text-[10px] text-slate-500">${escapeHtml(cyc)} &bull; Intake: ${Number(h.intake || 0).toLocaleString()} birds</span>
+                  <span class="text-[10px] text-slate-500">${cycPrefix}Intake: ${Number(h.intake || 0).toLocaleString()} birds</span>
                 </div>
                 <div class="w-28 shrink-0">
                   <input type="number" min="0" step="1" data-house-id="${h.id}" data-farm-id="${h.farmId}" value="${mort}"
@@ -2852,13 +2951,13 @@
 
     async function addFarm() {
       const name = document.getElementById('newFarmName').value.trim();
-      const cycle = document.getElementById('newFarmCycle').value.trim() || DEFAULT_CYCLE;
+      const cycle = sanitizeCycleName(document.getElementById('newFarmCycle').value);
       if (!name) return showToast('Enter a Farm name');
       db.farms.push({ id: 'farm_' + Date.now(), name, cycle });
       document.getElementById('newFarmName').value = '';
       document.getElementById('newFarmCycle').value = '';
       ensureDefaultSelections();
-      await refreshAfterAdminChange(`Farm added (${cycle})`);
+      await refreshAfterAdminChange(cycle ? `Farm added (${cycle})` : 'Farm added');
     }
 
     function editFarm(id) {
@@ -2869,12 +2968,12 @@
         { id: 'editFarmCycleInp', label: 'Active Cycle Number (New Cycle = Fresh Inputs)', value: getFarmActiveCycle(f.id), type: 'text' }
       ], async () => {
         const val = document.getElementById('editFarmNameInp').value.trim();
-        const cyc = document.getElementById('editFarmCycleInp').value.trim() || DEFAULT_CYCLE;
+        const cyc = sanitizeCycleName(document.getElementById('editFarmCycleInp').value);
         if (!val) return;
         f.name = val;
         f.cycle = cyc;
         closeEditValueModal();
-        await refreshAfterAdminChange(`Updated ${val} (${cyc})`);
+        await refreshAfterAdminChange(cyc ? `Updated ${val} (${cyc})` : `Updated ${val}`);
       });
     }
 
@@ -2906,10 +3005,11 @@
       if (!h) return;
       const cyc = getFarmActiveCycle(h.farmId);
       const currentMort = getHouseCycleMortality(h.farmId, cyc, h.id);
+      const mortLabel = cyc ? `Total Mortality (${cyc})` : 'Total Mortality';
       openEditValueModal('Edit House Details', [
         { id: 'editHouseNumInp', label: 'House Number', value: h.number, type: 'text' },
         { id: 'editHouseIntakeInp', label: 'Birds Intake', value: h.intake, type: 'number' },
-        { id: 'editHouseMortInp', label: `Total Mortality (${cyc})`, value: currentMort, type: 'number' }
+        { id: 'editHouseMortInp', label: mortLabel, value: currentMort, type: 'number' }
       ], async () => {
         const newNum = document.getElementById('editHouseNumInp').value.trim();
         if (!newNum) return;
@@ -3004,7 +3104,8 @@
 
       farms.forEach(farm => {
         const activeCycle = getFarmActiveCycle(farm.id);
-        lines.push(`GROUP (FARM): ${farm.name.toUpperCase()} [${activeCycle}]`);
+        const cycleTag = activeCycle ? ` [${activeCycle}]` : '';
+        lines.push(`GROUP (FARM): ${farm.name.toUpperCase()}${cycleTag}`);
         const houses = sortHousesNatural(db.houses.filter(h => h.farmId === farm.id), 'number');
         houses.forEach(house => {
           const logs = db.catchingLogs.filter(l =>
